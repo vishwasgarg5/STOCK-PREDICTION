@@ -1,17 +1,19 @@
 """
 model.py
-Train, Save and Load XGBoost Models
+Optimized XGBoost Model Training & Loading
 """
 
 import os
 import joblib
 import logging
+import pandas as pd
+import numpy as np
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
-    r2_score
+    r2_score,
 )
 
 from xgboost import XGBRegressor
@@ -30,30 +32,30 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
-# =====================================
-# SPLIT DATA
-# =====================================
+# ======================================================
+# TRAIN / TEST SPLIT
+# ======================================================
 
 def split_data(X, y):
 
-    split = int(len(X) * (1 - TEST_SIZE))
+    split_index = int(len(X) * (1 - TEST_SIZE))
 
-    X_train = X.iloc[:split]
-    X_test = X.iloc[split:]
+    X_train = X.iloc[:split_index].copy()
+    X_test = X.iloc[split_index:].copy()
 
-    y_train = y.iloc[:split]
-    y_test = y.iloc[split:]
+    y_train = y.iloc[:split_index].copy()
+    y_test = y.iloc[split_index:].copy()
 
     return X_train, X_test, y_train, y_test
 
 
-# =====================================
+# ======================================================
 # CREATE MODEL
-# =====================================
+# ======================================================
 
 def create_model():
 
-    return XGBRegressor(
+    model = XGBRegressor(
 
         objective="reg:squarederror",
 
@@ -61,123 +63,120 @@ def create_model():
 
         n_estimators=N_ESTIMATORS,
 
-        max_depth=MAX_DEPTH,
-
         learning_rate=LEARNING_RATE,
+
+        max_depth=MAX_DEPTH,
 
         subsample=SUBSAMPLE,
 
         colsample_bytree=COLSAMPLE_BYTREE,
 
-        n_jobs=-1
+        tree_method="hist",
+
+        n_jobs=-1,
+
+        verbosity=0,
+
     )
 
+    return model
 
-# =====================================
-# TRAIN ALL MODELS
-# =====================================
+
+# ======================================================
+# TRAIN
+# ======================================================
 
 def train_models(X, y_dict):
 
+    logger.info("Scaling Features...")
+
     scaler = StandardScaler()
 
-    X_scaled = scaler.fit_transform(X)
+    split_index = int(len(X) * (1 - TEST_SIZE))
+
+    X_train = X.iloc[:split_index]
+    X_test = X.iloc[split_index:]
+
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
 
     models = {}
 
+    metrics = {}
+
     for target in ["open", "high", "low", "close"]:
 
-        logger.info(f"Training {target.upper()} model...")
+        logger.info(f"Training {target.upper()} Model")
+
+        y_train = y_dict[target].iloc[:split_index]
+        y_test = y_dict[target].iloc[split_index:]
 
         model = create_model()
 
         model.fit(
+            X_train_scaled,
+            y_train,
+            eval_set=[(X_test_scaled, y_test)],
+            verbose=False,
+        )
 
-            X_scaled,
+        prediction = model.predict(X_test_scaled)
 
-            y_dict[target]
+        mae = mean_absolute_error(y_test, prediction)
 
+        rmse = np.sqrt(mean_squared_error(y_test, prediction))
+
+        r2 = r2_score(y_test, prediction)
+
+        logger.info(
+            f"{target.upper()} -> "
+            f"MAE={mae:.4f} "
+            f"RMSE={rmse:.4f} "
+            f"R2={r2:.4f}"
         )
 
         models[target] = model
 
-    models["scaler"] = scaler
+        metrics[target] = {
 
-    return models
+            "MAE": mae,
 
+            "RMSE": rmse,
 
-# =====================================
-# EVALUATE
-# =====================================
+            "R2": r2
 
-def evaluate_model(model, scaler, X, y):
+        }
 
-    split = int(len(X) * (1 - TEST_SIZE))
-
-    X_train = X.iloc[:split]
-
-    X_test = X.iloc[split:]
-
-    y_train = y.iloc[:split]
-
-    y_test = y.iloc[split:]
-
-    scaler.fit(X_train)
-
-    X_test_scaled = scaler.transform(X_test)
-
-    prediction = model.predict(X_test_scaled)
-
-    mae = mean_absolute_error(
-
-        y_test,
-
-        prediction
-
-    )
-
-    rmse = mean_squared_error(
-
-        y_test,
-
-        prediction,
-
-        squared=False
-
-    )
-
-    r2 = r2_score(
-
-        y_test,
-
-        prediction
-
-    )
-
-    logger.info(f"MAE  : {mae:.2f}")
-
-    logger.info(f"RMSE : {rmse:.2f}")
-
-    logger.info(f"R²   : {r2:.4f}")
+    return models, scaler, metrics
 
 
-# =====================================
+# ======================================================
 # SAVE
-# =====================================
+# ======================================================
 
-def save_models(models, feature_columns):
+def save_models(
 
-    for name in ["open", "high", "low", "close"]:
+    models,
+
+    scaler,
+
+    feature_columns,
+
+):
+
+    os.makedirs(MODEL_DIR, exist_ok=True)
+
+    for target in models:
 
         joblib.dump(
 
-            models[name],
+            models[target],
 
             os.path.join(
 
                 MODEL_DIR,
 
-                f"{name}_model.pkl"
+                f"{target}_model.pkl"
 
             )
 
@@ -185,7 +184,7 @@ def save_models(models, feature_columns):
 
     joblib.dump(
 
-        models["scaler"],
+        scaler,
 
         os.path.join(
 
@@ -211,32 +210,66 @@ def save_models(models, feature_columns):
 
     )
 
-    logger.info("Models saved successfully")
+    metadata = {
+
+        "model": "XGBoost",
+
+        "targets": list(models.keys()),
+
+        "features": len(feature_columns),
+
+    }
+
+    joblib.dump(
+
+        metadata,
+
+        os.path.join(
+
+            MODEL_DIR,
+
+            "metadata.pkl"
+
+        )
+
+    )
+
+    logger.info("Models Saved Successfully")
 
 
-# =====================================
+# ======================================================
 # LOAD
-# =====================================
+# ======================================================
 
 def load_models():
 
     models = {}
 
-    for name in ["open", "high", "low", "close"]:
+    for target in [
 
-        models[name] = joblib.load(
+        "open",
+
+        "high",
+
+        "low",
+
+        "close",
+
+    ]:
+
+        models[target] = joblib.load(
 
             os.path.join(
 
                 MODEL_DIR,
 
-                f"{name}_model.pkl"
+                f"{target}_model.pkl"
 
             )
 
         )
 
-    models["scaler"] = joblib.load(
+    scaler = joblib.load(
 
         os.path.join(
 
@@ -248,7 +281,7 @@ def load_models():
 
     )
 
-    models["features"] = joblib.load(
+    features = joblib.load(
 
         os.path.join(
 
@@ -260,6 +293,102 @@ def load_models():
 
     )
 
-    logger.info("Models loaded successfully")
+    metadata = joblib.load(
 
-    return models
+        os.path.join(
+
+            MODEL_DIR,
+
+            "metadata.pkl"
+
+        )
+
+    )
+
+    logger.info("Models Loaded Successfully")
+
+    return {
+
+        "models": models,
+
+        "scaler": scaler,
+
+        "features": features,
+
+        "metadata": metadata,
+
+    }
+
+
+# ======================================================
+# PREDICT
+# ======================================================
+
+def predict(models, scaler, feature_columns, latest_df):
+
+    latest = latest_df[feature_columns]
+
+    latest_scaled = scaler.transform(latest)
+
+    prediction = {
+
+        "Open": float(
+            models["open"].predict(latest_scaled)[0]
+        ),
+
+        "High": float(
+            models["high"].predict(latest_scaled)[0]
+        ),
+
+        "Low": float(
+            models["low"].predict(latest_scaled)[0]
+        ),
+
+        "Close": float(
+            models["close"].predict(latest_scaled)[0]
+        ),
+
+    }
+
+    # Validate OHLC
+
+    prediction["High"] = max(
+        prediction["Open"],
+        prediction["High"],
+        prediction["Low"],
+        prediction["Close"],
+    )
+
+    prediction["Low"] = min(
+        prediction["Open"],
+        prediction["High"],
+        prediction["Low"],
+        prediction["Close"],
+    )
+
+    return prediction
+
+
+# ======================================================
+# FEATURE IMPORTANCE
+# ======================================================
+
+def feature_importance(model, feature_columns):
+
+    importance = pd.DataFrame({
+
+        "Feature": feature_columns,
+
+        "Importance": model.feature_importances_
+
+    })
+
+    importance = importance.sort_values(
+
+        "Importance",
+
+        ascending=False
+
+    )
+
+    return importance
