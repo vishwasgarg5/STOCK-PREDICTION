@@ -2,6 +2,17 @@
 main.py
 AI NSE Stock Prediction System
 """
+import os
+
+from model import (
+    train_models,
+    save_models,
+)
+from feature_engineering import (
+    create_features,
+    create_targets,
+    prepare_dataset,
+)
 
 import logging
 from datetime import datetime
@@ -48,7 +59,34 @@ def save_excel(predictions, prediction_date):
 
     logger.info(f"Excel Saved : {filename}")
 
+def train_if_required(stock_data):
 
+    if os.path.exists("models/open_model.pkl"):
+        logger.info("Existing models found.")
+        return
+
+    logger.info("Training models for first time...")
+
+    # Use first stock for initial training
+    symbol = list(stock_data.keys())[0]
+
+    df = stock_data[symbol].copy()
+
+    df = create_features(df)
+    df = create_targets(df)
+
+    X, y, feature_columns, _ = prepare_dataset(df)
+
+    models, scaler, metrics = train_models(X, y)
+
+    save_models(
+        models,
+        scaler,
+        feature_columns
+    )
+
+    logger.info("Training Completed")
+    
 # ==========================================
 # MAIN
 # ==========================================
@@ -60,6 +98,8 @@ def main():
     logger.info("Downloading Stock Data...")
 
     stock_data = get_all_stock_data()
+
+    train_if_required(stock_data)
 
     logger.info(
         f"Stocks Downloaded : {len(stock_data)}"
