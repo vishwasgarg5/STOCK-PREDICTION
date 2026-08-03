@@ -5,48 +5,32 @@ Create ML features and target variables
 
 import pandas as pd
 
-# Number of lag features
 N_LAGS = 10
 
 
-def create_features(df: pd.DataFrame):
-    """
-    Create machine learning features
-    """
+def create_features(df):
 
     df = df.copy()
 
-    # -----------------------------
     # Lag Features
-    # -----------------------------
     for lag in range(1, N_LAGS + 1):
         df[f"CLOSE_LAG_{lag}"] = df["Close"].shift(lag)
 
-    # -----------------------------
-    # Rolling Statistics
-    # -----------------------------
+    # Rolling Features
     df["ROLL_MEAN_5"] = df["Close"].rolling(5).mean()
     df["ROLL_MEAN_10"] = df["Close"].rolling(10).mean()
 
     df["ROLL_STD_5"] = df["Close"].rolling(5).std()
     df["ROLL_STD_10"] = df["Close"].rolling(10).std()
 
-    # -----------------------------
-    # Price Spread
-    # -----------------------------
+    # Price Features
     df["HIGH_LOW_SPREAD"] = df["High"] - df["Low"]
-
-    df["OPEN_CLOSE_SPREAD"] = (
-        df["Close"] - df["Open"]
-    )
+    df["OPEN_CLOSE_SPREAD"] = df["Close"] - df["Open"]
 
     return df
 
 
-def create_targets(df: pd.DataFrame):
-    """
-    Next trading day targets
-    """
+def create_targets(df):
 
     df = df.copy()
 
@@ -59,17 +43,8 @@ def create_targets(df: pd.DataFrame):
 
 
 def prepare_dataset(df):
-    """
-    Prepare dataset for training and prediction
-    """
 
     df = df.copy()
-
-    # Keep last row for prediction
-    prediction_df = df.tail(1).copy()
-
-    # Remove rows with NaN values
-    train_df = df.dropna().copy()
 
     target_columns = [
         "TARGET_OPEN",
@@ -78,24 +53,58 @@ def prepare_dataset(df):
         "TARGET_CLOSE",
     ]
 
+    # Explicit feature list
     feature_columns = [
-        col
-        for col in train_df.columns
-        if col not in target_columns
+
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+
+        "RSI",
+        "MACD",
+        "MACD_SIGNAL",
+
+        "EMA20",
+        "EMA50",
+
+        "ADX",
+        "ATR",
+
+        "HIGH_LOW_SPREAD",
+        "OPEN_CLOSE_SPREAD",
+
+        "ROLL_MEAN_5",
+        "ROLL_MEAN_10",
+
+        "ROLL_STD_5",
+        "ROLL_STD_10",
+
     ]
+
+    for lag in range(1, N_LAGS + 1):
+        feature_columns.append(f"CLOSE_LAG_{lag}")
+
+    # Drop only rows missing required columns
+    train_df = df.dropna(
+        subset=feature_columns + target_columns
+    )
+
+    prediction_df = df[feature_columns].dropna().tail(1)
 
     X = train_df[feature_columns]
 
     y = {
+
         "open": train_df["TARGET_OPEN"],
+
         "high": train_df["TARGET_HIGH"],
+
         "low": train_df["TARGET_LOW"],
+
         "close": train_df["TARGET_CLOSE"],
+
     }
 
-    return (
-        X,
-        y,
-        feature_columns,
-        prediction_df
-    )
+    return X, y, feature_columns, prediction_df
