@@ -35,7 +35,7 @@ jobs:
 
     - name: Run AI Stock Prediction
       env:
-        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_TOKEN: ${{ secrets.BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.BOT_CHAT_ID }}
       run: |
         python main.py
