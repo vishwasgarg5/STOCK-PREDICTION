@@ -1,6 +1,6 @@
 """
 predictor.py
-Predict next trading day OHLC values
+Predict next trading day OHLC prices
 """
 
 import logging
@@ -14,9 +14,9 @@ from config import MAX_WORKERS
 logger = logging.getLogger(__name__)
 
 
-# =====================================================
+# ======================================================
 # PREPARE DATA
-# =====================================================
+# ======================================================
 
 def prepare_prediction_data(df):
 
@@ -24,14 +24,12 @@ def prepare_prediction_data(df):
 
     df = create_features(df)
 
-    # Prediction should NOT create target columns
-
     return df
 
 
-# =====================================================
-# VALIDATE PREDICTION
-# =====================================================
+# ======================================================
+# VALIDATE OHLC
+# ======================================================
 
 def validate_prediction(pred):
 
@@ -39,22 +37,22 @@ def validate_prediction(pred):
         pred["High"],
         pred["Open"],
         pred["Close"],
-        pred["Low"]
+        pred["Low"],
     )
 
     pred["Low"] = min(
         pred["Low"],
         pred["Open"],
         pred["Close"],
-        pred["High"]
+        pred["High"],
     )
 
     return pred
 
 
-# =====================================================
-# PREDICT ONE STOCK
-# =====================================================
+# ======================================================
+# PREDICT SINGLE STOCK
+# ======================================================
 
 def predict_stock(symbol, df, loaded):
 
@@ -68,19 +66,32 @@ def predict_stock(symbol, df, loaded):
 
         models = loaded["models"]
 
-        missing = [c for c in feature_columns if c not in df.columns]
+        # Ensure all required features exist
+        missing = [
+            col
+            for col in feature_columns
+            if col not in df.columns
+        ]
 
         if missing:
 
-            logger.error(f"{symbol}: Missing Features -> {missing}")
+            logger.warning(
+                f"{symbol}: Missing Features {missing}"
+            )
 
             return None
 
-        latest = df[feature_columns].dropna().tail(1)
+        latest = (
+            df[feature_columns]
+            .dropna()
+            .tail(1)
+        )
 
         if latest.empty:
 
-            logger.warning(f"{symbol}: No valid feature row")
+            logger.warning(
+                f"{symbol}: No valid prediction row"
+            )
 
             return None
 
@@ -91,39 +102,59 @@ def predict_stock(symbol, df, loaded):
             "Stock": symbol.replace(".NS", ""),
 
             "Open": round(
-                float(models["open"].predict(latest_scaled)[0]),
+                float(
+                    models["open"].predict(
+                        latest_scaled
+                    )[0]
+                ),
                 2
             ),
 
             "High": round(
-                float(models["high"].predict(latest_scaled)[0]),
+                float(
+                    models["high"].predict(
+                        latest_scaled
+                    )[0]
+                ),
                 2
             ),
 
             "Low": round(
-                float(models["low"].predict(latest_scaled)[0]),
+                float(
+                    models["low"].predict(
+                        latest_scaled
+                    )[0]
+                ),
                 2
             ),
 
             "Close": round(
-                float(models["close"].predict(latest_scaled)[0]),
+                float(
+                    models["close"].predict(
+                        latest_scaled
+                    )[0]
+                ),
                 2
             ),
 
         }
 
-        return validate_prediction(prediction)
+        return validate_prediction(
+            prediction
+        )
 
     except Exception as e:
 
-        logger.exception(f"{symbol}: {e}")
+        logger.exception(
+            f"{symbol}: {e}"
+        )
 
         return None
 
 
-# =====================================================
-# PREDICT MULTIPLE STOCKS
-# =====================================================
+# ======================================================
+# PREDICT MULTIPLE
+# ======================================================
 
 def predict_multiple(stock_data):
 
@@ -152,10 +183,12 @@ def predict_multiple(stock_data):
 
             result = future.result()
 
-            if result:
+            if result is not None:
 
                 predictions.append(result)
 
-    logger.info(f"Generated {len(predictions)} predictions")
+    logger.info(
+        f"Generated {len(predictions)} predictions"
+    )
 
     return predictions
