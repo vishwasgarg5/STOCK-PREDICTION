@@ -5,9 +5,9 @@ Central configuration for AI NSE Stock Prediction System
 
 import os
 
-# ==========================
+# ==========================================
 # PATHS
-# ==========================
+# ==========================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,42 +19,34 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
 
-# ==========================
-# NSE
-# ==========================
+# ==========================================
+# STOCK UNIVERSE
+# ==========================================
 
-NSE_LIST = (
-    "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
-)
+# Nifty 500 Constituents
+NSE_LIST = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
 
-# ==========================
+# ==========================================
 # DATA
-# ==========================
+# ==========================================
 
-# 1 year is enough for prediction
 PERIOD = "1y"
 
-# minimum candles required
-MIN_HISTORY = 150
+MIN_HISTORY = 200
 
-# ==========================
-# SCREENER
-# ==========================
-
-TOP_STOCKS = 5
-
-# parallel download workers
-MAX_WORKERS = 12
-
-# ==========================
-# CACHE
-# ==========================
+MAX_WORKERS = 16
 
 CACHE_EXPIRE_HOURS = 24
 
-# ==========================
+# ==========================================
+# SCREENER
+# ==========================================
+
+TOP_STOCKS = 5
+
+# ==========================================
 # MACHINE LEARNING
-# ==========================
+# ==========================================
 
 RANDOM_STATE = 42
 
@@ -62,23 +54,24 @@ TEST_SIZE = 0.20
 
 N_ESTIMATORS = 300
 
-MAX_DEPTH = 5
+MAX_DEPTH = 6
 
 LEARNING_RATE = 0.05
 
-SUBSAMPLE = 0.8
+SUBSAMPLE = 0.80
 
-COLSAMPLE_BYTREE = 0.8
+COLSAMPLE_BYTREE = 0.80
 
-# ==========================
+# ==========================================
 # TELEGRAM
-# ==========================
+# ==========================================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+
 CHAT_ID = os.getenv("CHAT_ID")
 
-# ==========================
+# ==========================================
 # LOGGING
-# ==========================
+# ==========================================
 
 LOG_LEVEL = "INFO"
