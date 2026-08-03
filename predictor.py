@@ -7,19 +7,16 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 from indicators import add_indicators
-from feature_engineering import (
-    create_features,
-    create_targets,
-)
+from feature_engineering import create_features
 from model import load_models
 from config import MAX_WORKERS
 
 logger = logging.getLogger(__name__)
 
 
-# =====================================
-# PREPARE ONE STOCK
-# =====================================
+# =====================================================
+# PREPARE DATA
+# =====================================================
 
 def prepare_prediction_data(df):
 
@@ -27,58 +24,91 @@ def prepare_prediction_data(df):
 
     df = create_features(df)
 
-    df = create_targets(df)
+    # Prediction should NOT create target columns
 
     return df
 
 
-# =====================================
-# PREDICT ONE STOCK
-# =====================================
+# =====================================================
+# VALIDATE PREDICTION
+# =====================================================
 
-def predict_stock(symbol, df, models):
+def validate_prediction(pred):
+
+    pred["High"] = max(
+        pred["High"],
+        pred["Open"],
+        pred["Close"],
+        pred["Low"]
+    )
+
+    pred["Low"] = min(
+        pred["Low"],
+        pred["Open"],
+        pred["Close"],
+        pred["High"]
+    )
+
+    return pred
+
+
+# =====================================================
+# PREDICT ONE STOCK
+# =====================================================
+
+def predict_stock(symbol, df, loaded):
 
     try:
 
         df = prepare_prediction_data(df)
 
-        feature_columns = models["features"]
+        feature_columns = loaded["features"]
 
-        scaler = models["scaler"]
+        scaler = loaded["scaler"]
 
-        latest = (
-            df[feature_columns]
-            .dropna()
-            .tail(1)
-        )
+        models = loaded["models"]
+
+        missing = [c for c in feature_columns if c not in df.columns]
+
+        if missing:
+
+            logger.error(f"{symbol}: Missing Features -> {missing}")
+
+            return None
+
+        latest = df[feature_columns].dropna().tail(1)
 
         if latest.empty:
 
-            logger.warning(f"{symbol}: No valid prediction row")
+            logger.warning(f"{symbol}: No valid feature row")
 
             return None
 
         latest_scaled = scaler.transform(latest)
 
-        open_price = models["open"].predict(latest_scaled)[0]
-
-        high_price = models["high"].predict(latest_scaled)[0]
-
-        low_price = models["low"].predict(latest_scaled)[0]
-
-        close_price = models["close"].predict(latest_scaled)[0]
-
         prediction = {
 
             "Stock": symbol.replace(".NS", ""),
 
-            "Open": round(float(open_price), 2),
+            "Open": round(
+                float(models["open"].predict(latest_scaled)[0]),
+                2
+            ),
 
-            "High": round(float(high_price), 2),
+            "High": round(
+                float(models["high"].predict(latest_scaled)[0]),
+                2
+            ),
 
-            "Low": round(float(low_price), 2),
+            "Low": round(
+                float(models["low"].predict(latest_scaled)[0]),
+                2
+            ),
 
-            "Close": round(float(close_price), 2),
+            "Close": round(
+                float(models["close"].predict(latest_scaled)[0]),
+                2
+            ),
 
         }
 
@@ -91,59 +121,13 @@ def predict_stock(symbol, df, models):
         return None
 
 
-# =====================================
-# VALIDATE
-# =====================================
-
-def validate_prediction(pred):
-
-    if pred is None:
-
-        return None
-
-    # High should be highest
-    if pred["High"] < max(
-        pred["Open"],
-        pred["Close"],
-        pred["Low"]
-    ):
-        pred["High"] = max(
-            pred["Open"],
-            pred["Close"],
-            pred["Low"]
-        )
-
-    # Low should be lowest
-    if pred["Low"] > min(
-        pred["Open"],
-        pred["Close"],
-        pred["High"]
-    ):
-        pred["Low"] = min(
-            pred["Open"],
-            pred["Close"],
-            pred["High"]
-        )
-
-    return pred
-
-
-# =====================================
+# =====================================================
 # PREDICT MULTIPLE STOCKS
-# =====================================
+# =====================================================
 
 def predict_multiple(stock_data):
 
-    """
-    stock_data =
-
-    {
-        "RELIANCE.NS": dataframe,
-        "SBIN.NS": dataframe
-    }
-    """
-
-    models = load_models()
+    loaded = load_models()
 
     predictions = []
 
@@ -157,7 +141,7 @@ def predict_multiple(stock_data):
                 predict_stock,
                 symbol,
                 df,
-                models
+                loaded
             )
 
             for symbol, df in stock_data.items()
@@ -171,5 +155,7 @@ def predict_multiple(stock_data):
             if result:
 
                 predictions.append(result)
+
+    logger.info(f"Generated {len(predictions)} predictions")
 
     return predictions
