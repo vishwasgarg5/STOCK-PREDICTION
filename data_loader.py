@@ -1,13 +1,13 @@
 """
 data_loader.py
-Download, cache and load NSE stock data
+Download and cache Nifty 500 stock data
 """
 
 import os
-import pickle
+import time
 import logging
-from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor
+import pickle
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 import yfinance as yf
@@ -18,53 +18,43 @@ from config import (
     CACHE_DIR,
     CACHE_EXPIRE_HOURS,
     MAX_WORKERS,
+    MIN_HISTORY,
 )
 
 logger = logging.getLogger(__name__)
 
 
 # ==========================================
-# NSE SYMBOL LIST
+# LOAD NIFTY 500 LIST
 # ==========================================
 
-def get_symbols():
-    """
-    Download NSE stock symbols
-    """
+def get_stock_list():
 
     df = pd.read_csv(NSE_LIST)
 
     symbols = (
-        df["SYMBOL"]
-        .dropna()
+        df["Symbol"]
         .astype(str)
         .str.strip()
-        + ".NS"
+        .add(".NS")
+        .tolist()
     )
 
-    return symbols.tolist()
+    logger.info(f"Nifty 500 Stocks : {len(symbols)}")
+
+    return symbols
 
 
 # ==========================================
-# CACHE FUNCTIONS
+# CACHE HELPERS
 # ==========================================
 
 def cache_path(symbol):
-    return os.path.join(CACHE_DIR, f"{symbol}.pkl")
 
-
-def cache_valid(symbol):
-
-    path = cache_path(symbol)
-
-    if not os.path.exists(path):
-        return False
-
-    modified = datetime.fromtimestamp(os.path.getmtime(path))
-
-    age = datetime.now() - modified
-
-    return age < timedelta(hours=CACHE_EXPIRE_HOURS)
+    return os.path.join(
+        CACHE_DIR,
+        symbol.replace(".NS", "") + ".pkl"
+    )
 
 
 def load_cache(symbol):
@@ -74,15 +64,21 @@ def load_cache(symbol):
     if not os.path.exists(path):
         return None
 
+    age = (
+        time.time()
+        - os.path.getmtime(path)
+    ) / 3600
+
+    if age > CACHE_EXPIRE_HOURS:
+        return None
+
     with open(path, "rb") as f:
         return pickle.load(f)
 
 
 def save_cache(symbol, df):
 
-    path = cache_path(symbol)
-
-    with open(path, "wb") as f:
+    with open(cache_path(symbol), "wb") as f:
         pickle.dump(df, f)
 
 
@@ -90,84 +86,81 @@ def save_cache(symbol, df):
 # DOWNLOAD ONE STOCK
 # ==========================================
 
-def download_stock(symbol, force=False):
+def download_stock(symbol):
+
+    cached = load_cache(symbol)
+
+    if cached is not None:
+        return symbol, cached
 
     try:
-
-        if not force and cache_valid(symbol):
-
-            df = load_cache(symbol)
-
-            if df is not None:
-                return df
-
-        logger.info(f"Downloading {symbol}")
 
         df = yf.download(
             symbol,
             period=PERIOD,
-            progress=False,
             auto_adjust=False,
-            threads=False
+            progress=False,
+            threads=False,
         )
 
         if df.empty:
-            return None
+            return symbol, None
+
+        if len(df) < MIN_HISTORY:
+            return symbol, None
 
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
-        df.dropna(inplace=True)
+        df = df[
+            [
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Volume",
+            ]
+        ].dropna()
 
         save_cache(symbol, df)
 
-        return df
+        return symbol, df
 
     except Exception as e:
 
         logger.warning(f"{symbol}: {e}")
 
-        return None
+        return symbol, None
 
 
 # ==========================================
-# DOWNLOAD MULTIPLE STOCKS
-# ==========================================
-
-def download_multiple(symbols):
-
-    results = {}
-
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-
-        dfs = executor.map(download_stock, symbols)
-
-        for symbol, df in zip(symbols, dfs):
-
-            if df is not None:
-
-                results[symbol] = df
-
-    logger.info(f"Downloaded {len(results)} stocks")
-
-    return results
-
-
-# ==========================================
-# GET ONE STOCK
-# ==========================================
-
-def get_stock(symbol):
-
-    return download_stock(symbol)
-
-
-# ==========================================
-# GET MULTIPLE STOCKS
+# DOWNLOAD ALL STOCKS
 # ==========================================
 
 def get_all_stock_data():
 
-    symbols = get_symbols()
+    symbols = get_stock_list()
 
-    return download_multiple(symbols)
+    stock_data = {}
+
+    with ThreadPoolExecutor(
+        max_workers=MAX_WORKERS
+    ) as executor:
+
+        futures = {
+            executor.submit(download_stock, s): s
+            for s in symbols
+        }
+
+        for future in as_completed(futures):
+
+            symbol, df = future.result()
+
+            if df is not None:
+                stock_data[symbol] = df
+
+    logger.info(
+        f"Downloaded {len(stock_data)} stocks"
+    )
+
+    return stock_data
