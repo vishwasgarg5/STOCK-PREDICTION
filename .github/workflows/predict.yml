@@ -27,12 +27,6 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-
-    - name: Train ML Models
-      run: |
-        python train.py
-
-
     - name: Run AI Stock Prediction
       env:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
