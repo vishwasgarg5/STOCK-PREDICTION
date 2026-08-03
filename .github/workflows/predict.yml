@@ -2,23 +2,21 @@ name: AI NSE Stock Prediction
 
 on:
   schedule:
-    # 3:45 AM UTC = 9:15 AM IST
     - cron: '45 3 * * 1-5'
 
   workflow_dispatch:
 
 jobs:
+
   predict:
 
     runs-on: ubuntu-latest
 
     steps:
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -31,16 +29,6 @@ jobs:
         run: |
           mkdir -p cache
           mkdir -p reports
-          mkdir -p models
-
-      - name: Train Models (only if not present)
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: |
-          if [ ! -f models/open_model.pkl ]; then
-            python train.py
-          fi
 
       - name: Run Prediction
         env:
@@ -49,8 +37,7 @@ jobs:
         run: |
           python main.py
 
-      - name: Upload Reports
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: prediction-report
           path: reports/*.xlsx
