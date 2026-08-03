@@ -70,26 +70,16 @@ def send_message(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     payload = {
-
         "chat_id": CHAT_ID,
-
         "text": message,
-
         "parse_mode": "Markdown"
-
     }
 
     try:
+        response = requests.post(url, json=payload, timeout=20)
 
-        response = requests.post(
-
-            url,
-
-            json=payload,
-
-            timeout=20
-
-        )
+        print("Status Code:", response.status_code)
+        print("Response:", response.text)
 
         response.raise_for_status()
 
@@ -98,11 +88,9 @@ def send_message(message):
         return True
 
     except Exception as e:
-
-        logger.error(f"Telegram Error : {e}")
+        logger.exception(f"Telegram Error: {e}")
 
         return False
-
 
 # =====================================================
 # SEND PREDICTIONS
