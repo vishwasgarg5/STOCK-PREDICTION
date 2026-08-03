@@ -1,6 +1,6 @@
 """
 feature_engineering.py
-Create ML features and target variables
+Feature Engineering for AI NSE Stock Prediction
 """
 
 import pandas as pd
@@ -8,27 +8,47 @@ import pandas as pd
 N_LAGS = 10
 
 
+# ======================================================
+# CREATE FEATURES
+# ======================================================
+
 def create_features(df):
 
     df = df.copy()
 
+    # -------------------------
     # Lag Features
+    # -------------------------
     for lag in range(1, N_LAGS + 1):
         df[f"CLOSE_LAG_{lag}"] = df["Close"].shift(lag)
 
-    # Rolling Features
+    # -------------------------
+    # Rolling Mean
+    # -------------------------
     df["ROLL_MEAN_5"] = df["Close"].rolling(5).mean()
     df["ROLL_MEAN_10"] = df["Close"].rolling(10).mean()
 
+    # -------------------------
+    # Rolling Std
+    # -------------------------
     df["ROLL_STD_5"] = df["Close"].rolling(5).std()
     df["ROLL_STD_10"] = df["Close"].rolling(10).std()
 
-    # Price Features
+    # -------------------------
+    # Price Spread
+    # -------------------------
     df["HIGH_LOW_SPREAD"] = df["High"] - df["Low"]
-    df["OPEN_CLOSE_SPREAD"] = df["Close"] - df["Open"]
+
+    df["OPEN_CLOSE_SPREAD"] = (
+        df["Close"] - df["Open"]
+    )
 
     return df
 
+
+# ======================================================
+# CREATE TARGETS
+# ======================================================
 
 def create_targets(df):
 
@@ -42,19 +62,15 @@ def create_targets(df):
     return df
 
 
-def prepare_dataset(df):
+# ======================================================
+# FEATURE LIST
+# ======================================================
 
-    df = df.copy()
+def get_feature_columns():
 
-    target_columns = [
-        "TARGET_OPEN",
-        "TARGET_HIGH",
-        "TARGET_LOW",
-        "TARGET_CLOSE",
-    ]
+    features = [
 
-    # Explicit feature list
-    feature_columns = [
+        # OHLCV
 
         "Open",
         "High",
@@ -62,17 +78,31 @@ def prepare_dataset(df):
         "Close",
         "Volume",
 
-        "RSI",
-        "MACD",
-        "MACD_SIGNAL",
+        # Indicators
 
         "EMA20",
         "EMA50",
 
+        "RSI",
+
+        "MACD",
+        "MACD_SIGNAL",
+
         "ADX",
+
         "ATR",
 
+        "OBV",
+
+        "RETURN_1",
+        "RETURN_5",
+
+        "VOLATILITY",
+
+        # Engineered
+
         "HIGH_LOW_SPREAD",
+
         "OPEN_CLOSE_SPREAD",
 
         "ROLL_MEAN_5",
@@ -84,14 +114,40 @@ def prepare_dataset(df):
     ]
 
     for lag in range(1, N_LAGS + 1):
-        feature_columns.append(f"CLOSE_LAG_{lag}")
 
-    # Drop only rows missing required columns
+        features.append(f"CLOSE_LAG_{lag}")
+
+    return features
+
+
+# ======================================================
+# PREPARE DATASET
+# ======================================================
+
+def prepare_dataset(df):
+
+    df = df.copy()
+
+    feature_columns = get_feature_columns()
+
+    target_columns = [
+
+        "TARGET_OPEN",
+        "TARGET_HIGH",
+        "TARGET_LOW",
+        "TARGET_CLOSE"
+
+    ]
+
     train_df = df.dropna(
         subset=feature_columns + target_columns
     )
 
-    prediction_df = df[feature_columns].dropna().tail(1)
+    prediction_df = (
+        df[feature_columns]
+        .dropna()
+        .tail(1)
+    )
 
     X = train_df[feature_columns]
 
@@ -107,4 +163,9 @@ def prepare_dataset(df):
 
     }
 
-    return X, y, feature_columns, prediction_df
+    return (
+        X,
+        y,
+        feature_columns,
+        prediction_df
+    )
