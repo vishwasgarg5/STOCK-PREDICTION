@@ -1,36 +1,56 @@
-name: AI NSE Prediction
+name: AI NSE Stock Prediction
 
 on:
+  schedule:
+    # 3:45 AM UTC = 9:15 AM IST
+    - cron: '45 3 * * 1-5'
 
   workflow_dispatch:
 
-  schedule:
-    - cron: "30 2 * * 1-5"
-
 jobs:
-
   predict:
 
     runs-on: ubuntu-latest
 
     steps:
 
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Run Prediction
-      env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        CHAT_ID: ${{ secrets.CHAT_ID }}
-      run: |
-        python main.py
+      - name: Create folders
+        run: |
+          mkdir -p cache
+          mkdir -p reports
+          mkdir -p models
+
+      - name: Train Models (only if not present)
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          if [ ! -f models/open_model.pkl ]; then
+            python train.py
+          fi
+
+      - name: Run Prediction
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python main.py
+
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-report
+          path: reports/*.xlsx
