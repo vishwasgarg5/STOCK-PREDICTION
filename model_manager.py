@@ -5,6 +5,10 @@ Compare candidate model with existing model
 
 import os
 import pandas as pd
+import shutil
+from datetime import datetime
+
+from config import MODEL_DIR
 
 from config import REPORT_DIR
 
@@ -89,3 +93,36 @@ def should_replace(model_name):
 
 
     return False
+
+def backup_current_models():
+
+    archive_dir = os.path.join(
+        MODEL_DIR,
+        "archive",
+        datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    )
+
+    os.makedirs(
+        archive_dir,
+        exist_ok=True
+    )
+
+
+    for file in os.listdir(MODEL_DIR):
+
+        source = os.path.join(
+            MODEL_DIR,
+            file
+        )
+
+        if os.path.isfile(source):
+
+            shutil.copy(
+                source,
+                archive_dir
+            )
+
+
+    print(
+        f"Models backed up: {archive_dir}"
+    )
