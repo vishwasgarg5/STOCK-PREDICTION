@@ -15,6 +15,11 @@ CACHE_DIR = os.path.join(BASE_DIR, "cache")
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 REPORT_DIR = os.path.join(BASE_DIR, "reports")
 
+MODEL_HISTORY_FILE = os.path.join(
+    REPORT_DIR,
+    "model_history.csv"
+)
+
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
