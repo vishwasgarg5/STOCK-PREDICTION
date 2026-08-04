@@ -68,7 +68,14 @@ def train_models(X, y):
     scaler = StandardScaler()
 
     X_scaled = scaler.fit_transform(X)
-
+    
+    # Create time-series validation split
+    tscv = TimeSeriesSplit(n_splits=5)
+    
+    # Keep only the last split
+    for train_index, test_index in tscv.split(X_scaled):
+        pass
+    
     models = {}
 
     for target in ["open", "high", "low", "close"]:
