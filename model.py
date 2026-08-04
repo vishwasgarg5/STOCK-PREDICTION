@@ -109,6 +109,11 @@ def train_models(X, y):
             f"MAPE: {metrics['MAPE']:.2f}% | "
             f"R2: {metrics['R2']:.4f}"
         )
+
+        save_model_history(
+            target,
+            metrics
+        )
     
         # Retrain final model on all available data
         model.fit(
