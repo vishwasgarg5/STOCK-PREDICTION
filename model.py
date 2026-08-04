@@ -81,14 +81,36 @@ def train_models(X, y):
     for target in ["open", "high", "low", "close"]:
 
         logger.info(f"Training {target.upper()} model...")
-
+    
         model = build_model()
-
+    
+        # Train using historical data
+        model.fit(
+            X_scaled[train_index],
+            y[target].iloc[train_index]
+        )
+    
+        # Evaluate on unseen recent data
+        metrics = evaluate_model(
+            model,
+            X_scaled[test_index],
+            y[target].iloc[test_index]
+        )
+    
+        logger.info(
+            f"{target.upper()} Metrics | "
+            f"MAE: {metrics['MAE']:.2f} | "
+            f"RMSE: {metrics['RMSE']:.2f} | "
+            f"MAPE: {metrics['MAPE']:.2f}% | "
+            f"R2: {metrics['R2']:.4f}"
+        )
+    
+        # Retrain final model on all available data
         model.fit(
             X_scaled,
             y[target]
         )
-
+    
         models[target] = model
 
     return models, scaler
