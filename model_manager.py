@@ -122,6 +122,33 @@ def backup_current_models():
                 archive_dir
             )
 
+    def replace_models(new_model_dir):
+
+    backup_current_models()
+
+    for file in os.listdir(new_model_dir):
+
+        source = os.path.join(
+            new_model_dir,
+            file
+        )
+
+        destination = os.path.join(
+            MODEL_DIR,
+            file
+        )
+
+        if os.path.isfile(source):
+
+            shutil.copy(
+                source,
+                destination
+            )
+
+    print(
+        "Production models replaced successfully."
+    )
+
 
     print(
         f"Models backed up: {archive_dir}"
