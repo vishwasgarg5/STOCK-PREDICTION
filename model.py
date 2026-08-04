@@ -216,3 +216,47 @@ def load_models():
         "features": feature_columns,
 
     }
+
+# ==========================================
+# EVALUATE MODEL
+# ==========================================
+
+def evaluate_model(model, X_test, y_test):
+
+    predictions = model.predict(X_test)
+
+    metrics = {
+
+        "MAE": float(
+            mean_absolute_error(
+                y_test,
+                predictions
+            )
+        ),
+
+        "RMSE": float(
+            np.sqrt(
+                mean_squared_error(
+                    y_test,
+                    predictions
+                )
+            )
+        ),
+
+        "MAPE": float(
+            mean_absolute_percentage_error(
+                y_test,
+                predictions
+            ) * 100
+        ),
+
+        "R2": float(
+            r2_score(
+                y_test,
+                predictions
+            )
+        )
+
+    }
+
+    return metrics
