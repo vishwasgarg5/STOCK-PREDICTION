@@ -5,6 +5,8 @@ Evaluate prediction accuracy
 
 import os
 import pandas as pd
+import yfinance as yf
+from datetime import timedelta
 
 from config import REPORT_DIR
 
@@ -46,3 +48,41 @@ def save_accuracy(result):
     )
 
     print("Accuracy history updated.")
+
+def get_actual_price(symbol, prediction_date):
+    """
+    Download the actual OHLC for the prediction date.
+    Returns None if data is unavailable.
+    """
+
+    try:
+
+        start = pd.to_datetime(prediction_date)
+
+        end = start + timedelta(days=5)
+
+        df = yf.download(
+            symbol + ".NS",
+            start=start.strftime("%Y-%m-%d"),
+            end=end.strftime("%Y-%m-%d"),
+            progress=False,
+            auto_adjust=False,
+        )
+
+        if df.empty:
+            return None
+
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
+        row = df.iloc[0]
+
+        return {
+            "Open": float(row["Open"]),
+            "High": float(row["High"]),
+            "Low": float(row["Low"]),
+            "Close": float(row["Close"]),
+        }
+
+    except Exception:
+        return None
