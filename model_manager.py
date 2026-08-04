@@ -137,14 +137,18 @@ def replace_models(new_model_dir):
             new_model_dir,
             file
         )
-
+    
         destination = os.path.join(
             MODEL_DIR,
             file
         )
-
+    
+        # Skip copying same file
+        if os.path.abspath(source) == os.path.abspath(destination):
+            continue
+    
         if os.path.isfile(source):
-
+    
             shutil.copy(
                 source,
                 destination
