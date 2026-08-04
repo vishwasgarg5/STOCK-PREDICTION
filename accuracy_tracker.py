@@ -174,17 +174,16 @@ def evaluate_prediction_file(prediction_date):
     summary = {
 
         "Date": prediction_date,
-
+    
         "Stocks": len(df),
-
-        "MAE_Open": round(df["MAE_Open"].mean(), 2),
-
-        "MAE_High": round(df["MAE_High"].mean(), 2),
-
-        "MAE_Low": round(df["MAE_Low"].mean(), 2),
-
-        "MAE_Close": round(df["MAE_Close"].mean(), 2),
-
+    
+        "MAE_Open": float(round(df["MAE_Open"].mean(), 2)),
+    
+        "MAE_High": float(round(df["MAE_High"].mean(), 2)),
+    
+        "MAE_Low": float(round(df["MAE_Low"].mean(), 2)),
+    
+        "MAE_Close": float(round(df["MAE_Close"].mean(), 2)),
     }
 
     save_accuracy(summary)
