@@ -1,44 +1,91 @@
 """
 model_manager.py
-Compare model performance
+Compare candidate model with existing model
 """
 
+import os
 import pandas as pd
 
 from config import REPORT_DIR
 
 
-MODEL_HISTORY = (
-    REPORT_DIR +
-    "/model_history.csv"
+MODEL_HISTORY = os.path.join(
+    REPORT_DIR,
+    "model_history.csv"
 )
+
+
+def load_history():
+
+    if not os.path.exists(MODEL_HISTORY):
+
+        return None
+
+    return pd.read_csv(
+        MODEL_HISTORY
+    )
+
+
+def get_previous_metrics(model_name):
+
+    df = load_history()
+
+    if df is None:
+        return None
+
+    df = df[
+        df["Model"] == model_name.upper()
+    ]
+
+    # Need at least 2 records
+    # because latest record is the new model
+
+    if len(df) < 2:
+
+        return None
+
+    return df.iloc[-2]
 
 
 def get_latest_metrics(model_name):
 
-    df = pd.read_csv(
-        MODEL_HISTORY
-    )
+    df = load_history()
+
+    if df is None:
+        return None
 
     df = df[
         df["Model"] == model_name.upper()
     ]
 
     if df.empty:
+
         return None
 
     return df.iloc[-1]
 
 
-def compare_models(
-        old_mae,
-        new_mae
-):
+def should_replace(model_name):
 
-    if new_mae < old_mae:
+    old = get_previous_metrics(
+        model_name
+    )
 
-        return "REPLACE"
+    new = get_latest_metrics(
+        model_name
+    )
 
-    else:
 
-        return "KEEP"
+    if old is None or new is None:
+
+        return False
+
+
+    # Lower MAE is better
+
+    if new["MAE"] < old["MAE"]:
+
+        return True
+
+
+    return False
