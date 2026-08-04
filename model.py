@@ -294,3 +294,45 @@ def evaluate_model(model, X_test, y_test):
     }
 
     return metrics
+
+# ==========================================
+# SAVE MODEL METRICS HISTORY
+# ==========================================
+
+def save_model_history(model_name, metrics):
+
+    record = {
+
+        "Date": datetime.now().strftime("%Y-%m-%d"),
+
+        "Model": model_name.upper(),
+
+        "MAE": metrics["MAE"],
+
+        "RMSE": metrics["RMSE"],
+
+        "MAPE": metrics["MAPE"],
+
+        "R2": metrics["R2"]
+
+    }
+
+    df = pd.DataFrame([record])
+
+
+    if os.path.exists(MODEL_HISTORY_FILE):
+
+        old = pd.read_csv(
+            MODEL_HISTORY_FILE
+        )
+
+        df = pd.concat(
+            [old, df],
+            ignore_index=True
+        )
+
+
+    df.to_csv(
+        MODEL_HISTORY_FILE,
+        index=False
+    )
