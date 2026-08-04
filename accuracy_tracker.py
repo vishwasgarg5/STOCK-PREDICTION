@@ -122,3 +122,71 @@ def evaluate_prediction(predicted, actual):
             2
         )
     }
+
+def evaluate_prediction_file(prediction_date):
+
+    history = load_prediction_history()
+
+    if history is None:
+        return
+
+    history = history[
+        history["Prediction_Date"] == prediction_date
+    ]
+
+    if history.empty:
+        return
+
+    results = []
+
+    for _, row in history.iterrows():
+
+        actual = get_actual_price(
+            row["Stock"],
+            prediction_date
+        )
+
+        if actual is None:
+            continue
+
+        predicted = {
+            "Open": row["Open"],
+            "High": row["High"],
+            "Low": row["Low"],
+            "Close": row["Close"],
+        }
+
+        score = evaluate_prediction(
+            predicted,
+            actual
+        )
+
+        score["Date"] = prediction_date
+        score["Stock"] = row["Stock"]
+
+        results.append(score)
+
+    if not results:
+        return
+
+    df = pd.DataFrame(results)
+
+    summary = {
+
+        "Date": prediction_date,
+
+        "Stocks": len(df),
+
+        "MAE_Open": round(df["MAE_Open"].mean(), 2),
+
+        "MAE_High": round(df["MAE_High"].mean(), 2),
+
+        "MAE_Low": round(df["MAE_Low"].mean(), 2),
+
+        "MAE_Close": round(df["MAE_Close"].mean(), 2),
+
+    }
+
+    save_accuracy(summary)
+
+    print(summary)
