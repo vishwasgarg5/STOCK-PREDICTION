@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import yfinance as yf
 from datetime import timedelta
+from sklearn.metrics import mean_absolute_error
 
 from config import REPORT_DIR
 
@@ -86,3 +87,38 @@ def get_actual_price(symbol, prediction_date):
 
     except Exception:
         return None
+def evaluate_prediction(predicted, actual):
+
+    return {
+        "MAE_Open": round(
+            mean_absolute_error(
+                [actual["Open"]],
+                [predicted["Open"]]
+            ),
+            2
+        ),
+
+        "MAE_High": round(
+            mean_absolute_error(
+                [actual["High"]],
+                [predicted["High"]]
+            ),
+            2
+        ),
+
+        "MAE_Low": round(
+            mean_absolute_error(
+                [actual["Low"]],
+                [predicted["Low"]]
+            ),
+            2
+        ),
+
+        "MAE_Close": round(
+            mean_absolute_error(
+                [actual["Close"]],
+                [predicted["Close"]]
+            ),
+            2
+        )
+    }
