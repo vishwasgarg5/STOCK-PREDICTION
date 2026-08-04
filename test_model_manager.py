@@ -1,8 +1,5 @@
-from model_manager import compare_models
+from model_manager import should_replace
 
-result = compare_models(
-    10,
-    8
+print(
+    should_replace("close")
 )
-
-print(result)
