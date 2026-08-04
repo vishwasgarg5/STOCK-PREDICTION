@@ -13,6 +13,7 @@ from data_loader import get_all_stock_data
 from screener import screen_stocks
 from predictor import predict_multiple
 from telegram_bot import send_predictions
+from prediction_history import save_prediction_history
 
 
 # ======================================================
@@ -106,6 +107,11 @@ def main():
         prediction_date
     )
 
+    # Save prediction history
+    save_prediction_history(
+        predictions,
+        prediction_date
+    )
     # Telegram
     send_predictions(
         predictions,
