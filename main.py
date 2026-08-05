@@ -125,16 +125,10 @@ def main():
     
         logger.info("-" * 60)
         logger.info("FINAL PREDICTIONS")
-    
-        for p in predictions:
-    
-            logger.info(
-                f"{p['Stock']:12}"
-                f" O:{p['Open']:8.2f}"
-                f" H:{p['High']:8.2f}"
-                f" L:{p['Low']:8.2f}"
-                f" C:{p['Close']:8.2f}"
-            )
+        
+        table = pd.DataFrame(predictions)
+        
+        logger.info("\n" + table.to_string(index=False))
     
         end = datetime.now()
     
