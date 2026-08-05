@@ -78,16 +78,26 @@ def load_cache(symbol):
     if not os.path.exists(path):
         return None
 
-    age = (
-        time.time()
-        - os.path.getmtime(path)
-    ) / 3600
+    try:
 
-    if age > CACHE_EXPIRE_HOURS:
+        age = (
+            time.time()
+            - os.path.getmtime(path)
+        ) / 3600
+
+        if age > CACHE_EXPIRE_HOURS:
+            return None
+
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    except Exception as e:
+
+        logger.warning(
+            f"Cache error {symbol}: {e}"
+        )
+
         return None
-
-    with open(path, "rb") as f:
-        return pickle.load(f)
 
 
 def save_cache(symbol, df):
