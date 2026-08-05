@@ -43,6 +43,18 @@ def load_metadata():
     with open(METADATA_FILE, "r") as f:
 
         return json.load(f)
+
+def get_production_mae(model_name):
+
+    metadata = load_metadata()
+
+    if metadata is None:
+        return 999999
+
+    return metadata["mae"].get(
+        model_name.lower(),
+        999999
+    )
         
 def get_previous_metrics(model_name):
 
@@ -83,31 +95,14 @@ def get_latest_metrics(model_name):
     return df.iloc[-1]
 
 
-def should_replace(model_name):
+def should_replace(model_name, candidate_mae):
 
-    old = get_previous_metrics(
+    production_mae = get_production_mae(
         model_name
     )
 
-    new = get_latest_metrics(
-        model_name
-    )
-
-
-    if old is None or new is None:
-
-        return False
-
-
-    # Lower MAE is better
-
-    if new["MAE"] < old["MAE"]:
-
-        return True
-
-
-    return False
-
+    return candidate_mae < production_mae
+    
 def backup_current_models():
 
     archive_dir = os.path.join(
