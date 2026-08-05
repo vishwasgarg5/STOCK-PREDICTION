@@ -4,35 +4,27 @@ Compare candidate model with existing model
 """
 
 import json
+import logging
 import os
-import pandas as pd
 import shutil
 from datetime import datetime
 
-from config import MODEL_DIR
+from config import MODEL_DIR, REPORT_DIR
 
-from config import REPORT_DIR
-
-
-MODEL_HISTORY = os.path.join(
-    REPORT_DIR,
-    "model_history.csv"
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
 )
+
+logger = logging.getLogger(__name__)
+
 
 METADATA_FILE = os.path.join(
     MODEL_DIR,
     "metadata.json"
 )
 
-def load_history():
-
-    if not os.path.exists(MODEL_HISTORY):
-
-        return None
-
-    return pd.read_csv(
-        MODEL_HISTORY
-    )
+DEFAULT_MAE = float("inf")
 
 def load_metadata():
 
@@ -49,52 +41,13 @@ def get_production_mae(model_name):
     metadata = load_metadata()
 
     if metadata is None:
-        return 999999
+        return DEFAULT_MAE
 
     return metadata["mae"].get(
         model_name.lower(),
-        999999
+        DEFAULT_MAE
     )
         
-def get_previous_metrics(model_name):
-
-    df = load_history()
-
-    if df is None:
-        return None
-
-    df = df[
-        df["Model"] == model_name.upper()
-    ]
-
-    # Need at least 2 records
-    # because latest record is the new model
-
-    if len(df) < 2:
-
-        return None
-
-    return df.iloc[-2]
-
-
-def get_latest_metrics(model_name):
-
-    df = load_history()
-
-    if df is None:
-        return None
-
-    df = df[
-        df["Model"] == model_name.upper()
-    ]
-
-    if df.empty:
-
-        return None
-
-    return df.iloc[-1]
-
-
 def should_replace(model_name, candidate_mae):
 
     production_mae = get_production_mae(
@@ -131,10 +84,7 @@ def backup_current_models():
                 archive_dir
             )
 
-    print(
-        f"Models backed up: {archive_dir}"
-    )
-
+    logger.info(f"Models backed up: {archive_dir}")
 
 def replace_models(new_model_dir):
 
@@ -163,9 +113,7 @@ def replace_models(new_model_dir):
                 destination
             )
 
-    print(
-        "Production models replaced successfully."
-    )
+    logger.info("Production models replaced successfully.")
 
 def update_metadata(mae_values):
 
@@ -180,3 +128,5 @@ def update_metadata(mae_values):
             f,
             indent=4
         )
+
+    logger.info(f"Metadata updated: {METADATA_FILE}")
