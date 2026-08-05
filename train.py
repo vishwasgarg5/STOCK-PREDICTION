@@ -113,7 +113,7 @@ def main():
         )
     
         replace_models(
-            "models"
+            CANDIDATE_MODEL_DIR
         )
     
     else:
