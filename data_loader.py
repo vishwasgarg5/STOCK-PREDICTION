@@ -11,7 +11,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 import yfinance as yf
-yf.set_tz_cache_location("/tmp/yfinance_cache")
+
+YF_CACHE = os.path.join(
+    CACHE_DIR,
+    "yfinance_cache"
+)
+
+os.makedirs(
+    YF_CACHE,
+    exist_ok=True
+)
+
+yf.set_tz_cache_location(
+    YF_CACHE
+)
 
 from config import (
     NSE_LIST,
