@@ -2,14 +2,17 @@ name: AI NSE STOCK PREDICTION
 
 on:
   workflow_dispatch:
+
   schedule:
-    - cron: "30 4 * * 1-5"   # Runs daily at 10:00 AM IST (Mon-Fri)
+    - cron: "30 4 * * 1-5"   # 10:00 AM IST Mon-Fri
+
 
 jobs:
 
   stock_prediction:
 
     runs-on: ubuntu-latest
+
 
     steps:
 
@@ -23,13 +26,32 @@ jobs:
         python-version: "3.11"
 
 
+    # ==========================================
+    # RESTORE AI MEMORY
+    # ==========================================
+
+    - name: Cache AI files
+      uses: actions/cache@v4
+      with:
+        path: |
+          cache
+          models
+          models_candidate
+          reports
+        key: ai-stock-model-${{ runner.os }}
+        restore-keys: |
+          ai-stock-model-${{ runner.os }}
+
+
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
+
 
     - name: Run AI Stock Prediction
       env:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHAT_ID: ${{ secrets.CHAT_ID }}
+
       run: |
         python main.py
