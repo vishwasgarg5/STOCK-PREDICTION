@@ -23,102 +23,111 @@ from model_manager import (
     replace_models,
     should_replace,
 )
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+
+logger = logging.getLogger(__name__)
+
+
 def main():
 
-    logger.info("Downloading Nifty 500 data...")
-
-    stock_data = get_all_stock_data()
-
-    logger.info(f"Stocks Loaded : {len(stock_data)}")
-
-    training_frames = []
-
-    for symbol, df in stock_data.items():
-
-        try:
-
-            df = add_indicators(df)
-
-            df = create_features(df)
-
-            df = create_targets(df)
-
-            training_frames.append(df)
-
-        except Exception as e:
-
-            logger.warning(f"{symbol}: {e}")
-
-    if not training_frames:
-
-        raise ValueError("No training data generated.")
-
-    logger.info("Combining all stock data...")
-
-    combined_df = pd.concat(
-        training_frames,
-        ignore_index=True
-    )
-
-    logger.info(f"Training Rows : {len(combined_df)}")
-
-    X, y, feature_columns, _ = prepare_dataset(
-        combined_df
-    )
-
-    logger.info(f"Features : {len(feature_columns)}")
-
-
-    models, scaler = train_models(X, y)
+    try:
+        logger.info("Downloading Nifty 500 data...")
     
+        stock_data = get_all_stock_data()
+
+        if not stock_data:
+            logger.error("No stock data downloaded.")
+            return False
     
-    # Save newly trained candidate models
-    save_models(
-        models,
-        scaler,
-        feature_columns
-    )
+        logger.info(f"Stocks Loaded : {len(stock_data)}")
     
+        training_frames = []
     
-    # Check model improvement
+        for symbol, df in stock_data.items():
     
-    replace = False
+            try:
     
-    for target in [
-        "open",
-        "high",
-        "low",
-        "close"
-    ]:
+                df = add_indicators(df)
     
-        if should_replace(target):
+                df = create_features(df)
     
-            replace = True
-            break
+                df = create_targets(df)
     
+                training_frames.append(df)
     
-    if replace:
+            except Exception as e:
     
-        logger.info(
-            "New model is better. Replacing production model..."
+                logger.warning(f"{symbol}: {e}")
+    
+        if not training_frames:
+    
+            raise ValueError("No training data generated.")
+    
+        logger.info("Combining all stock data...")
+    
+        combined_df = pd.concat(
+            training_frames,
+            ignore_index=True
         )
     
-        replace_models(
-            CANDIDATE_MODEL_DIR
+        logger.info(f"Training Rows : {len(combined_df)}")
+    
+        X, y, feature_columns, _ = prepare_dataset(
+            combined_df
         )
     
-    else:
+        logger.info(f"Features : {len(feature_columns)}")
     
-        logger.info(
-            "Existing model is better. Keeping current model."
+    
+        models, scaler = train_models(X, y)
+        
+        
+        # Save newly trained candidate models
+        save_models(
+            models,
+            scaler,
+            feature_columns
         )
-    
-    
-    logger.info(
-        "Training Completed Successfully"
-    )
+        
+        
+        # Check model improvement
+        
+        replace = any(
+            should_replace(target)
+            for target in ["open", "high", "low", "close"]
+        )
+        
+        
+        if replace:
+        
+            logger.info(
+                "New model is better. Replacing production model..."
+            )
+        
+            replace_models(
+                CANDIDATE_MODEL_DIR
+            )
+        
+        else:
+            logger.info("Existing model is better. Keeping current model.")
+
+        logger.info("Training Completed Successfully")
+        return True
+
+    except Exception as e:
+        logger.exception(f"Training failed: {e}")
+        return False
 
 
 if __name__ == "__main__":
 
-    main()
+    success = main()
+
+    if success:
+        logger.info("Training finished successfully.")
+    else:
+        logger.error("Training failed.")
