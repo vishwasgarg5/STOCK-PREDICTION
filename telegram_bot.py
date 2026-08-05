@@ -6,6 +6,7 @@ Send AI NSE Stock Prediction to Telegram
 import os
 import logging
 import requests
+from datetime import datetime
 
 from config import BOT_TOKEN, CHAT_ID, REPORT_DIR
 
@@ -70,12 +71,16 @@ def send_predictions(predictions, prediction_date):
 
         if response.status_code == 200:
 
-            logger.info("Telegram message sent successfully.")
-
+            logger.info(
+                "Telegram message sent successfully."
+            )
+        
         else:
-
-            logger.error(response.text)
-
+        
+            logger.error(
+                response.text
+            )
+            
     except Exception as e:
 
         logger.exception(e)
@@ -116,3 +121,95 @@ def send_predictions(predictions, prediction_date):
         except Exception as e:
 
             logger.exception(e)
+
+# ==========================================
+# SEND TRAINING UPDATE
+# ==========================================
+
+def send_training_update(
+    status,
+    metrics=None,
+    replaced=False
+):
+
+    message = (
+        "🤖 *AI NSE MODEL TRAINING*\n\n"
+        f"📅 Date: `{datetime.now().strftime('%Y-%m-%d %H:%M')}`\n\n"
+        f"Status: {status}\n\n"
+    )
+
+
+    if replaced:
+
+        message += (
+            "🚀 Model Update:\n"
+            "New model replaced production model ✅\n\n"
+        )
+
+    else:
+
+        message += (
+            "ℹ️ Model Update:\n"
+            "Existing model kept (better performance) ✅\n\n"
+        )
+
+
+    if metrics:
+
+        message += "📊 Model Performance:\n\n"
+
+        for model, mae in metrics.items():
+
+            message += (
+                f"{model.upper()} MAE : {mae:.2f}\n"
+            )
+
+
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{BOT_TOKEN}/sendMessage"
+    )
+
+
+    payload = {
+
+        "chat_id": CHAT_ID,
+
+        "text": message,
+
+        "parse_mode": "Markdown"
+
+    }
+
+
+    try:
+
+        response = requests.post(
+            url,
+            data=payload,
+            timeout=30
+        )
+
+
+        if response.status_code == 200:
+
+            logger.info(
+                "Training Telegram message sent."
+            )
+
+            return True
+
+        else:
+
+            logger.error(
+                response.text
+            )
+
+            return False
+
+
+    except Exception as e:
+
+        logger.exception(e)
+
+        return False
