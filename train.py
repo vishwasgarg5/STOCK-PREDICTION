@@ -14,6 +14,7 @@ from feature_engineering import (
     create_targets,
     prepare_dataset,
 )
+from telegram_bot import send_training_update
 from indicators import add_indicators
 
 from model import (
@@ -43,7 +44,17 @@ def main():
         stock_data = get_all_stock_data()
 
         if not stock_data:
-            logger.error("No stock data downloaded.")
+
+            logger.error(
+                "No stock data downloaded."
+            )
+        
+            send_training_update(
+                status="❌ Training Failed\nNo stock data downloaded",
+                metrics=None,
+                replaced=False
+            )
+        
             return False
     
         logger.info(f"Stocks Loaded : {len(stock_data)}")
@@ -123,13 +134,33 @@ def main():
             )
         
         else:
-            logger.info("Existing model is better. Keeping current model.")
+        
+            logger.info(
+                "Existing model is better. Keeping current model."
+            )
+        
+        
+        send_training_update(
+            status="✅ Training Completed Successfully",
+            metrics=candidate_mae,
+            replaced=replace
+        )
 
         logger.info("Training Completed Successfully")
         return True
 
     except Exception as e:
-        logger.exception(f"Training failed: {e}")
+
+        logger.exception(
+            f"Training failed: {e}"
+        )
+    
+        send_training_update(
+            status=f"❌ Training Failed\n{e}",
+            metrics=None,
+            replaced=False
+        )
+    
         return False
 
 
