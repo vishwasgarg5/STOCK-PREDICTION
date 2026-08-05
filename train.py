@@ -18,6 +18,11 @@ from model import (
     save_models,
 )
 
+from model_manager import (
+    should_replace,
+    replace_models,
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s"
@@ -71,15 +76,55 @@ def main():
 
     logger.info(f"Features : {len(feature_columns)}")
 
-    models, scaler = train_models(X, y)
 
+    models, scaler = train_models(X, y)
+    
+    
+    # Save newly trained candidate models
     save_models(
         models,
         scaler,
         feature_columns
     )
-
-    logger.info("Training Completed Successfully")
+    
+    
+    # Check model improvement
+    
+    replace = False
+    
+    for target in [
+        "open",
+        "high",
+        "low",
+        "close"
+    ]:
+    
+        if should_replace(target):
+    
+            replace = True
+            break
+    
+    
+    if replace:
+    
+        logger.info(
+            "New model is better. Replacing production model..."
+        )
+    
+        replace_models(
+            "models"
+        )
+    
+    else:
+    
+        logger.info(
+            "Existing model is better. Keeping current model."
+        )
+    
+    
+    logger.info(
+        "Training Completed Successfully"
+    )
 
 
 if __name__ == "__main__":
