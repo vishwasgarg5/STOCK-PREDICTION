@@ -2,7 +2,7 @@
 main.py
 AI NSE Stock Prediction System
 """
-
+import os
 import logging
 from datetime import datetime
 
@@ -38,6 +38,9 @@ def save_excel(predictions, prediction_date):
         logger.warning("No predictions to save.")
         return
 
+    # Create reports folder if it doesn't exist
+    os.makedirs(REPORT_DIR, exist_ok=True)
+
     df = pd.DataFrame(predictions)
 
     filename = (
@@ -58,91 +61,104 @@ def save_excel(predictions, prediction_date):
 
 def main():
 
-    start = datetime.now()
+    try:
+        start = datetime.now()
 
-    logger.info("=" * 60)
-    logger.info("AI NSE STOCK PREDICTION")
-    logger.info("=" * 60)
-
-    # Download latest stock data
-    logger.info("Downloading latest Nifty 500 data...")
-    stock_data = get_all_stock_data()
-
-    if not stock_data:
-        logger.error("No stock data downloaded.")
-        return
-
-    logger.info(f"Stocks downloaded: {len(stock_data)}")
-
-    # Run screener
-    logger.info("Running screener...")
-    top_stocks = screen_stocks(stock_data)
-
-    if not top_stocks:
-        logger.error("No stocks selected by screener.")
-        return
-
-    logger.info(f"Top Stocks: {top_stocks}")
-
-    # Keep only screened stocks
-    top_stock_data = {
-        symbol: stock_data[symbol]
-        for symbol in top_stocks
-        if symbol in stock_data
-    }
-
-    # Prediction
-    logger.info("Running prediction...")
-    predictions = predict_multiple(top_stock_data)
-
-    if not predictions:
-        logger.error("No predictions generated.")
-        return
-
-    prediction_date = datetime.now().strftime("%Y-%m-%d")
-
-    # Save report
-    save_excel(
-        predictions,
-        prediction_date
-    )
-
-    # Save prediction history
-    save_prediction_history(
-        predictions,
-        prediction_date
-    )
-    # Telegram
-    send_predictions(
-        predictions,
-        prediction_date
-    )
-
-    logger.info("")
-    logger.info("FINAL PREDICTIONS")
-
-    for p in predictions:
-
-        logger.info(
-            f"{p['Stock']:12}"
-            f" O:{p['Open']:8.2f}"
-            f" H:{p['High']:8.2f}"
-            f" L:{p['Low']:8.2f}"
-            f" C:{p['Close']:8.2f}"
+        logger.info("=" * 60)
+        logger.info("AI NSE STOCK PREDICTION")
+        logger.info("=" * 60)
+    
+        # Download latest stock data
+        logger.info("Downloading latest Nifty 500 data...")
+        stock_data = get_all_stock_data()
+    
+        if not stock_data:
+            logger.error("No stock data downloaded.")
+            return False
+    
+        logger.info(f"Stocks downloaded: {len(stock_data)}")
+    
+        # Run screener
+        logger.info("Running screener...")
+        top_stocks = screen_stocks(stock_data)
+    
+        if not top_stocks:
+            logger.error("No stocks selected by screener.")
+            return False
+    
+        logger.info(f"Top Stocks: {top_stocks}")
+    
+        # Keep only screened stocks
+        top_stock_data = {
+            symbol: stock_data[symbol]
+            for symbol in top_stocks
+            if symbol in stock_data
+        }
+    
+        # Prediction
+        logger.info("Running prediction...")
+        predictions = predict_multiple(top_stock_data)
+        logger.info(f"Generated {len(predictions)} predictions")
+    
+        if not predictions:
+            logger.error("No predictions generated.")
+            return False
+    
+        prediction_date = datetime.now().strftime("%Y-%m-%d")
+    
+        # Save report
+        save_excel(
+            predictions,
+            prediction_date
         )
+    
+        # Save prediction history
+        save_prediction_history(
+            predictions,
+            prediction_date
+        )
+        # Telegram
+        send_predictions(
+            predictions,
+            prediction_date
+        )
+    
+        logger.info("-" * 60)
+        logger.info("FINAL PREDICTIONS")
+    
+        for p in predictions:
+    
+            logger.info(
+                f"{p['Stock']:12}"
+                f" O:{p['Open']:8.2f}"
+                f" H:{p['High']:8.2f}"
+                f" L:{p['Low']:8.2f}"
+                f" C:{p['Close']:8.2f}"
+            )
+    
+        end = datetime.now()
+    
+        logger.info("-" * 60)
+        logger.info("AI NSE STOCK PREDICTION SYSTEM")
+        logger.info(f"Started : {start.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 60)
 
-    end = datetime.now()
+        return True
 
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info(f"Execution Time : {end-start}")
-    logger.info("=" * 60)
+    except Exception as e:
 
-
+        logger.exception(f"Unexpected error: {e}")
+        return False
+    
 # ======================================================
 # ENTRY
 # ======================================================
 
 if __name__ == "__main__":
 
-    main()
+    success = main()
+
+    if success:
+        logger.info("Program completed successfully.")
+    else:
+        logger.error("Program terminated with errors.")
