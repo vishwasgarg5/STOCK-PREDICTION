@@ -140,7 +140,7 @@ def main():
     
         logger.info("-" * 60)
         logger.info("AI NSE STOCK PREDICTION SYSTEM")
-        logger.info(f"Started : {start.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"Execution Time : {end - start}")
         logger.info("=" * 60)
 
         return True
