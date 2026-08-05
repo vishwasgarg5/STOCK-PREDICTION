@@ -83,6 +83,7 @@ def train_models(X, y):
         pass
     
     models = {}
+    candidate_mae = {}
 
     for target in ["open", "high", "low", "close"]:
 
@@ -115,6 +116,7 @@ def train_models(X, y):
             target,
             metrics
         )
+        candidate_mae[target] = metrics["MAE"]
     
         # Retrain final model on all available data
         model.fit(
@@ -124,7 +126,7 @@ def train_models(X, y):
     
         models[target] = model
 
-    return models, scaler
+    return models, scaler, candidate_mae
 
 
 # ==========================================
