@@ -150,7 +150,7 @@ def save_models(
     joblib.dump(
         models["open"],
         os.path.join(
-            MODEL_DIR,
+            CANDIDATE_MODEL_DIR,
             "open_model.pkl"
         )
     )
@@ -158,7 +158,7 @@ def save_models(
     joblib.dump(
         models["high"],
         os.path.join(
-            MODEL_DIR,
+            CANDIDATE_MODEL_DIR,
             "high_model.pkl"
         )
     )
@@ -166,7 +166,7 @@ def save_models(
     joblib.dump(
         models["low"],
         os.path.join(
-            MODEL_DIR,
+           CANDIDATE_MODEL_DIR,
             "low_model.pkl"
         )
     )
@@ -174,7 +174,7 @@ def save_models(
     joblib.dump(
         models["close"],
         os.path.join(
-            MODEL_DIR,
+            CANDIDATE_MODEL_DIR,
             "close_model.pkl"
         )
     )
@@ -182,7 +182,7 @@ def save_models(
     joblib.dump(
         scaler,
         os.path.join(
-            MODEL_DIR,
+            CANDIDATE_MODEL_DIR,
             "scaler.pkl"
         )
     )
@@ -190,7 +190,7 @@ def save_models(
     joblib.dump(
         feature_columns,
         os.path.join(
-            MODEL_DIR,
+            CANDIDATE_MODEL_DIR,
             "features.pkl"
         )
     )
