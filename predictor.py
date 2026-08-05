@@ -21,12 +21,10 @@ logger = logging.getLogger(__name__)
 def prepare_prediction_data(df):
 
     df = add_indicators(df)
-
     df = create_features(df)
 
     return df
-
-
+    
 # ======================================================
 # VALIDATE OHLC
 # ======================================================
@@ -158,6 +156,8 @@ def predict_stock(symbol, df, loaded):
 
 def predict_multiple(stock_data):
 
+    logger.info("Loading trained models...")
+
     loaded = load_models()
 
     predictions = []
@@ -187,8 +187,14 @@ def predict_multiple(stock_data):
 
                 predictions.append(result)
 
+    predictions.sort(
+        key=lambda x: x["Stock"]
+    )
+
     logger.info(
         f"Generated {len(predictions)} predictions"
     )
 
     return predictions
+
+
