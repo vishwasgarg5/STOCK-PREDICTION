@@ -4,34 +4,25 @@ Train AI models using all Nifty 500 stocks
 """
 
 import logging
+
 import pandas as pd
 
-from data_loader import get_all_stock_data
-from indicators import add_indicators
 from config import CANDIDATE_MODEL_DIR
+from data_loader import get_all_stock_data
 from feature_engineering import (
     create_features,
     create_targets,
     prepare_dataset,
 )
+from indicators import add_indicators
 from model import (
-    train_models,
     save_models,
+    train_models,
 )
-
 from model_manager import (
-    should_replace,
     replace_models,
+    should_replace,
 )
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
-)
-
-logger = logging.getLogger(__name__)
-
-
 def main():
 
     logger.info("Downloading Nifty 500 data...")
