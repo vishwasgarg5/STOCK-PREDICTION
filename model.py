@@ -26,6 +26,7 @@ from xgboost import XGBRegressor
 
 from config import (
     MODEL_DIR,
+    CANDIDATE_MODEL_DIR,
     RANDOM_STATE,
     N_ESTIMATORS,
     MAX_DEPTH,
@@ -138,6 +139,11 @@ def save_models(
 
     os.makedirs(
         MODEL_DIR,
+        exist_ok=True
+    )
+    
+    os.makedirs(
+        CANDIDATE_MODEL_DIR,
         exist_ok=True
     )
 
