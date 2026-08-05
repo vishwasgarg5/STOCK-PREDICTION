@@ -3,6 +3,7 @@ model_manager.py
 Compare candidate model with existing model
 """
 
+import json
 import os
 import pandas as pd
 import shutil
@@ -18,6 +19,10 @@ MODEL_HISTORY = os.path.join(
     "model_history.csv"
 )
 
+METADATA_FILE = os.path.join(
+    MODEL_DIR,
+    "metadata.json"
+)
 
 def load_history():
 
@@ -29,7 +34,16 @@ def load_history():
         MODEL_HISTORY
     )
 
+def load_metadata():
 
+    if not os.path.exists(METADATA_FILE):
+
+        return None
+
+    with open(METADATA_FILE, "r") as f:
+
+        return json.load(f)
+        
 def get_previous_metrics(model_name):
 
     df = load_history()
