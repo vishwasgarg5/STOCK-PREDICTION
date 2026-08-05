@@ -166,3 +166,17 @@ def replace_models(new_model_dir):
     print(
         "Production models replaced successfully."
     )
+
+def update_metadata(mae_values):
+
+    metadata = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "mae": mae_values
+    }
+
+    with open(METADATA_FILE, "w") as f:
+        json.dump(
+            metadata,
+            f,
+            indent=4
+        )
