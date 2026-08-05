@@ -8,6 +8,7 @@ import pandas as pd
 
 from data_loader import get_all_stock_data
 from indicators import add_indicators
+from config import CANDIDATE_MODEL_DIR
 from feature_engineering import (
     create_features,
     create_targets,
