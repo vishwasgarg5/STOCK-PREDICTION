@@ -27,7 +27,11 @@ MODEL_HISTORY_FILE = os.path.join(
 )
 
 os.makedirs(CACHE_DIR, exist_ok=True)
+
 os.makedirs(MODEL_DIR, exist_ok=True)
+
+os.makedirs(CANDIDATE_MODEL_DIR, exist_ok=True)
+
 os.makedirs(REPORT_DIR, exist_ok=True)
 
 # ==========================================
