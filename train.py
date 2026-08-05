@@ -15,13 +15,16 @@ from feature_engineering import (
     prepare_dataset,
 )
 from indicators import add_indicators
+
 from model import (
     save_models,
     train_models,
 )
+
 from model_manager import (
     replace_models,
     should_replace,
+    update_metadata,
 )
 
 logging.basicConfig(
@@ -83,7 +86,7 @@ def main():
         logger.info(f"Features : {len(feature_columns)}")
     
     
-        models, scaler = train_models(X, y)
+        models, scaler, candidate_mae = train_models(X, y)
         
         
         # Save newly trained candidate models
@@ -97,19 +100,26 @@ def main():
         # Check model improvement
         
         replace = any(
-            should_replace(target)
+            should_replace(
+                target,
+                candidate_mae[target]
+            )
             for target in ["open", "high", "low", "close"]
         )
         
         
         if replace:
-        
+
             logger.info(
                 "New model is better. Replacing production model..."
             )
         
             replace_models(
                 CANDIDATE_MODEL_DIR
+            )
+        
+            update_metadata(
+                candidate_mae
             )
         
         else:
