@@ -1,12 +1,11 @@
+```yaml
 name: Train AI NSE Models
 
 on:
-
   workflow_dispatch:
 
   schedule:
-    - cron: "30 12 * * 1-5"   # 6:00 PM IST Mon-Fri (after market close)
-
+    - cron: "30 15 * * 1-5"
 
 jobs:
 
@@ -14,50 +13,24 @@ jobs:
 
     runs-on: ubuntu-latest
 
-
     steps:
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-
-    # ==========================================
-    # RESTORE AI MEMORY
-    # ==========================================
-
-    - name: Cache AI files
-      uses: actions/cache@v4
-      with:
-        path: |
-          cache
-          models
-          models_candidate
-          reports
-        key: ai-stock-training-${{ runner.os }}
-        restore-keys: |
-          ai-stock-training-${{ runner.os }}
-
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-
-
-    # ==========================================
-    # TRAIN AI MODEL
-    # ==========================================
-
-    - name: Train Models
-      env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        CHAT_ID: ${{ secrets.CHAT_ID }}
-
-      run: |
-        python train.py
+      - name: Train Models
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python train.py
+```
