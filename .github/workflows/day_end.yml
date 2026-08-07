@@ -1,4 +1,3 @@
-
 name: AI NSE Day End Report
 
 on:
@@ -27,10 +26,9 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Generate Day End Report
+      - name: Run Day End Report
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           python day_end_report.py
-
