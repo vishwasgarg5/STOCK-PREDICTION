@@ -1,38 +1,18 @@
-```python
+````python
 """
 day_end_report.py
 
 Compare predicted OHLC prices with actual market OHLC prices.
 
-The report contains:
+Telegram report:
+    Predicted | Actual | Difference | Difference %
 
-    Stock
-    Predicted Open
-    Actual Open
-    Open Difference
-    Open Difference %
-
-    Predicted High
-    Actual High
-    High Difference
-    High Difference %
-
-    Predicted Low
-    Actual Low
-    Low Difference
-    Low Difference %
-
-    Predicted Close
-    Actual Close
-    Close Difference
-    Close Difference %
-
-The report is sent to Telegram after market close.
+Excel report:
+    Full detailed OHLC comparison
 """
 
 import os
 import logging
-from datetime import datetime
 
 import pandas as pd
 import requests
@@ -68,7 +48,7 @@ HISTORY_FILE = os.path.join(
 
 
 # ======================================================
-# GET ACTUAL STOCK DATA
+# GET ACTUAL OHLC
 # ======================================================
 
 def get_actual_ohlc(symbol, prediction_date):
@@ -81,10 +61,6 @@ def get_actual_ohlc(symbol, prediction_date):
             f"Downloading actual data: {ticker}"
         )
 
-        # ------------------------------------------
-        # Download fresh market data
-        # ------------------------------------------
-
         df = yf.download(
             ticker,
             period="5d",
@@ -92,7 +68,6 @@ def get_actual_ohlc(symbol, prediction_date):
             progress=False,
             threads=False
         )
-
 
         if df.empty:
 
@@ -146,8 +121,8 @@ def get_actual_ohlc(symbol, prediction_date):
 
 
         # ------------------------------------------
-        # If prediction date is not available,
-        # find the first trading day after it.
+        # If unavailable, use first trading day
+        # after prediction date.
         # ------------------------------------------
 
         if row.empty:
@@ -160,7 +135,7 @@ def get_actual_ohlc(symbol, prediction_date):
 
                 logger.warning(
                     f"Actual price not available for "
-                    f"{symbol} on/after {prediction_date}"
+                    f"{symbol} after {prediction_date}"
                 )
 
                 return None
@@ -171,30 +146,24 @@ def get_actual_ohlc(symbol, prediction_date):
         row = row.iloc[0]
 
 
-        actual = {
+        return {
 
-            "Actual_Date": row["Date"],
+            "Actual_Date":
+                row["Date"],
 
-            "Actual_Open": float(
-                row["Open"]
-            ),
+            "Actual_Open":
+                float(row["Open"]),
 
-            "Actual_High": float(
-                row["High"]
-            ),
+            "Actual_High":
+                float(row["High"]),
 
-            "Actual_Low": float(
-                row["Low"]
-            ),
+            "Actual_Low":
+                float(row["Low"]),
 
-            "Actual_Close": float(
-                row["Close"]
-            ),
+            "Actual_Close":
+                float(row["Close"]),
 
         }
-
-
-        return actual
 
 
     except Exception as e:
@@ -233,10 +202,6 @@ def create_day_end_report(
     prediction_date=None
 ):
 
-    # ------------------------------------------
-    # Check history file
-    # ------------------------------------------
-
     if not os.path.exists(
         HISTORY_FILE
     ):
@@ -265,7 +230,7 @@ def create_day_end_report(
 
 
         # ------------------------------------------
-        # If no date supplied, use latest date
+        # Latest prediction date
         # ------------------------------------------
 
         if prediction_date is None:
@@ -286,7 +251,7 @@ def create_day_end_report(
 
 
         # ------------------------------------------
-        # Select predictions
+        # Get predictions
         # ------------------------------------------
 
         predictions = history[
@@ -307,10 +272,6 @@ def create_day_end_report(
             return None
 
 
-        # ------------------------------------------
-        # Remove duplicate stocks
-        # ------------------------------------------
-
         predictions = (
             predictions
             .drop_duplicates(
@@ -324,7 +285,7 @@ def create_day_end_report(
 
 
         # ==========================================
-        # PROCESS EACH STOCK
+        # PROCESS STOCKS
         # ==========================================
 
         for _, prediction in predictions.iterrows():
@@ -350,7 +311,7 @@ def create_day_end_report(
 
 
             # --------------------------------------
-            # Predicted values
+            # Predicted
             # --------------------------------------
 
             predicted_open = float(
@@ -371,7 +332,7 @@ def create_day_end_report(
 
 
             # --------------------------------------
-            # Actual values
+            # Actual
             # --------------------------------------
 
             actual_open = actual[
@@ -392,7 +353,7 @@ def create_day_end_report(
 
 
             # --------------------------------------
-            # Differences
+            # Difference
             # --------------------------------------
 
             open_diff = (
@@ -417,7 +378,7 @@ def create_day_end_report(
 
 
             # --------------------------------------
-            # Percentage differences
+            # Difference %
             # --------------------------------------
 
             open_pct = percentage_difference(
@@ -441,10 +402,6 @@ def create_day_end_report(
             )
 
 
-            # --------------------------------------
-            # Store row
-            # --------------------------------------
-
             report_rows.append({
 
                 "Prediction_Date":
@@ -456,110 +413,63 @@ def create_day_end_report(
                 "Stock":
                     symbol,
 
+
                 "Predicted_Open":
-                    round(
-                        predicted_open,
-                        2
-                    ),
+                    round(predicted_open, 2),
 
                 "Actual_Open":
-                    round(
-                        actual_open,
-                        2
-                    ),
+                    round(actual_open, 2),
 
                 "Open_Difference":
-                    round(
-                        open_diff,
-                        2
-                    ),
+                    round(open_diff, 2),
 
                 "Open_Difference_%":
-                    round(
-                        open_pct,
-                        2
-                    ),
+                    round(open_pct, 2),
 
 
                 "Predicted_High":
-                    round(
-                        predicted_high,
-                        2
-                    ),
+                    round(predicted_high, 2),
 
                 "Actual_High":
-                    round(
-                        actual_high,
-                        2
-                    ),
+                    round(actual_high, 2),
 
                 "High_Difference":
-                    round(
-                        high_diff,
-                        2
-                    ),
+                    round(high_diff, 2),
 
                 "High_Difference_%":
-                    round(
-                        high_pct,
-                        2
-                    ),
+                    round(high_pct, 2),
 
 
                 "Predicted_Low":
-                    round(
-                        predicted_low,
-                        2
-                    ),
+                    round(predicted_low, 2),
 
                 "Actual_Low":
-                    round(
-                        actual_low,
-                        2
-                    ),
+                    round(actual_low, 2),
 
                 "Low_Difference":
-                    round(
-                        low_diff,
-                        2
-                    ),
+                    round(low_diff, 2),
 
                 "Low_Difference_%":
-                    round(
-                        low_pct,
-                        2
-                    ),
+                    round(low_pct, 2),
 
 
                 "Predicted_Close":
-                    round(
-                        predicted_close,
-                        2
-                    ),
+                    round(predicted_close, 2),
 
                 "Actual_Close":
-                    round(
-                        actual_close,
-                        2
-                    ),
+                    round(actual_close, 2),
 
                 "Close_Difference":
-                    round(
-                        close_diff,
-                        2
-                    ),
+                    round(close_diff, 2),
 
                 "Close_Difference_%":
-                    round(
-                        close_pct,
-                        2
-                    ),
+                    round(close_pct, 2),
 
             })
 
 
         # ==========================================
-        # CREATE DATAFRAME
+        # CREATE REPORT
         # ==========================================
 
         if not report_rows:
@@ -633,131 +543,112 @@ def send_day_end_telegram(
     if not BOT_TOKEN or not CHAT_ID:
 
         logger.warning(
-            "Telegram BOT_TOKEN or CHAT_ID missing."
+            "Telegram credentials missing."
         )
 
         return False
 
 
     # ==========================================
-    # CALCULATE SUMMARY
+    # AVERAGE ERROR
     # ==========================================
 
-    close_errors = (
-        report[
-            "Close_Difference_%"
-        ].abs()
-    )
-
-    open_errors = (
+    avg_open_error = (
         report[
             "Open_Difference_%"
-        ].abs()
-    )
-
-    high_errors = (
-        report[
-            "High_Difference_%"
-        ].abs()
-    )
-
-    low_errors = (
-        report[
-            "Low_Difference_%"
-        ].abs()
-    )
-
-
-    avg_open_error = (
-        open_errors.mean()
+        ].abs().mean()
     )
 
     avg_high_error = (
-        high_errors.mean()
+        report[
+            "High_Difference_%"
+        ].abs().mean()
     )
 
     avg_low_error = (
-        low_errors.mean()
+        report[
+            "Low_Difference_%"
+        ].abs().mean()
     )
 
     avg_close_error = (
-        close_errors.mean()
+        report[
+            "Close_Difference_%"
+        ].abs().mean()
     )
 
 
     # ==========================================
-    # BUILD MESSAGE
+    # TELEGRAM MESSAGE
     # ==========================================
 
     message = (
         "📊 *AI NSE DAY-END REPORT*\n\n"
+
         f"📅 Date: `{prediction_date}`\n\n"
+
         f"📈 Stocks Evaluated: "
         f"{len(report)}\n\n"
 
-        "🎯 *Average Absolute Error*\n"
+        "🎯 *AVERAGE ABSOLUTE ERROR*\n\n"
+
         f"Open  : {avg_open_error:.2f}%\n"
         f"High  : {avg_high_error:.2f}%\n"
         f"Low   : {avg_low_error:.2f}%\n"
         f"Close : {avg_close_error:.2f}%\n\n"
 
-        "📋 *STOCK RESULTS*\n"
+        "📋 *PREDICTED vs ACTUAL*\n"
     )
 
 
     # ==========================================
-    # STOCK RESULTS
+    # STOCK TABLES
     # ==========================================
 
     for _, row in report.iterrows():
 
-        close_pct = (
-            row["Close_Difference_%"]
-        )
-
-        open_pct = (
-            row["Open_Difference_%"]
-        )
-
-        high_pct = (
-            row["High_Difference_%"]
-        )
-
-        low_pct = (
-            row["Low_Difference_%"]
-        )
-
-
         message += (
-            f"\n*{row['Stock']}*\n"
-            f"Open  : "
-            f"{row['Predicted_Open']:.2f}"
-            f" → "
-            f"{row['Actual_Open']:.2f}"
-            f" ({open_pct:+.2f}%)\n"
+            "\n"
+            f"📌 *{row['Stock']}*\n"
+            "```\n"
+            f"{'':<8}"
+            f"{'Predicted':>12}"
+            f"{'Actual':>12}"
+            f"{'Diff':>10}"
+            f"{'Diff %':>10}\n"
 
-            f"High  : "
-            f"{row['Predicted_High']:.2f}"
-            f" → "
-            f"{row['Actual_High']:.2f}"
-            f" ({high_pct:+.2f}%)\n"
+            f"{'-' * 52}\n"
 
-            f"Low   : "
-            f"{row['Predicted_Low']:.2f}"
-            f" → "
-            f"{row['Actual_Low']:.2f}"
-            f" ({low_pct:+.2f}%)\n"
+            f"{'Open':<8}"
+            f"{row['Predicted_Open']:>12.2f}"
+            f"{row['Actual_Open']:>12.2f}"
+            f"{row['Open_Difference']:>+10.2f}"
+            f"{row['Open_Difference_%']:>+10.2f}%\n"
 
-            f"Close : "
-            f"{row['Predicted_Close']:.2f}"
-            f" → "
-            f"{row['Actual_Close']:.2f}"
-            f" ({close_pct:+.2f}%)\n"
+            f"{'High':<8}"
+            f"{row['Predicted_High']:>12.2f}"
+            f"{row['Actual_High']:>12.2f}"
+            f"{row['High_Difference']:>+10.2f}"
+            f"{row['High_Difference_%']:>+10.2f}%\n"
+
+            f"{'Low':<8}"
+            f"{row['Predicted_Low']:>12.2f}"
+            f"{row['Actual_Low']:>12.2f}"
+            f"{row['Low_Difference']:>+10.2f}"
+            f"{row['Low_Difference_%']:>+10.2f}%\n"
+
+            f"{'Close':<8}"
+            f"{row['Predicted_Close']:>12.2f}"
+            f"{row['Actual_Close']:>12.2f}"
+            f"{row['Close_Difference']:>+10.2f}"
+            f"{row['Close_Difference_%']:>+10.2f}%\n"
+
+            "```\n"
         )
 
 
     # ==========================================
-    # SEND TEXT
+    # SEND TELEGRAM MESSAGE
     # ==========================================
 
     send_message_url = (
@@ -794,7 +685,7 @@ def send_day_end_telegram(
 
 
         # ======================================
-        # SEND EXCEL
+        # SEND EXCEL FILE
         # ======================================
 
         document_url = (
@@ -871,8 +762,7 @@ def main():
         prediction_date = (
             report[
                 "Prediction_Date"
-            ]
-            .iloc[0]
+            ].iloc[0]
         )
 
 
@@ -892,7 +782,7 @@ def main():
         else:
 
             logger.warning(
-                "Day-end report created but Telegram "
+                "Report created but Telegram "
                 "delivery failed."
             )
 
@@ -917,7 +807,6 @@ if __name__ == "__main__":
 
     success = main()
 
-
     if success:
 
         logger.info(
@@ -929,4 +818,4 @@ if __name__ == "__main__":
         logger.error(
             "Day-end report failed."
         )
-```
+````
