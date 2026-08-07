@@ -1,11 +1,11 @@
-name: AI NSE STOCK PREDICTION
+```yaml
+name: AI NSE Stock Prediction
 
 on:
   workflow_dispatch:
 
   schedule:
-    - cron: "30 4 * * 1-5"   # 10:00 AM IST Mon-Fri
-
+    - cron: "30 3 * * 1-5"
 
 jobs:
 
@@ -13,45 +13,24 @@ jobs:
 
     runs-on: ubuntu-latest
 
-
     steps:
 
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
 
-
-    # ==========================================
-    # RESTORE AI MEMORY
-    # ==========================================
-
-    - name: Cache AI files
-      uses: actions/cache@v4
-      with:
-        path: |
-          cache
-          models
-          models_candidate
-          reports
-        key: ai-stock-model-${{ runner.os }}
-        restore-keys: |
-          ai-stock-model-${{ runner.os }}
-
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-
-
-    - name: Run AI Stock Prediction
-      env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        CHAT_ID: ${{ secrets.CHAT_ID }}
-
-      run: |
-        python main.py
+      - name: Run AI Stock Prediction
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python main.py
+```
