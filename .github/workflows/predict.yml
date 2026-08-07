@@ -1,4 +1,4 @@
-```yaml
+
 name: AI NSE Stock Prediction
 
 on:
@@ -33,4 +33,4 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           python main.py
-```
+
