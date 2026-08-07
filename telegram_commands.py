@@ -1,3 +1,4 @@
+```python
 """
 telegram_commands.py
 
@@ -8,8 +9,8 @@ Commands:
 /run      -> Run prediction workflow
 /train    -> Run model training workflow
 /report   -> Run day-end report workflow
-/status   -> Show available workflows
-/help     -> Show commands
+/status   -> Show system status
+/help     -> Show available commands
 """
 
 import os
@@ -18,15 +19,32 @@ import requests
 
 
 # ==========================================================
+# LOGGING
+# ==========================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ==========================================================
 # CONFIGURATION
 # ==========================================================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
 
+
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is missing")
+
+if not CHAT_ID:
+    raise RuntimeError("CHAT_ID is missing")
 
 if not GITHUB_TOKEN:
     raise RuntimeError("GITHUB_TOKEN is missing")
@@ -43,7 +61,7 @@ GITHUB_API = "https://api.github.com"
 
 
 # ==========================================================
-# WORKFLOW NAMES
+# WORKFLOWS
 # ==========================================================
 
 WORKFLOWS = {
@@ -51,24 +69,21 @@ WORKFLOWS = {
     "/run": {
         "file": "predict.yml",
         "message": (
-            "🚀 AI Stock Prediction workflow "
-            "has been triggered."
+            "📈 Prediction workflow triggered."
         )
     },
 
     "/train": {
         "file": "train_model.yml",
         "message": (
-            "🤖 AI Model Training workflow "
-            "has been triggered."
+            "🤖 Model training workflow triggered."
         )
     },
 
     "/report": {
         "file": "day_end.yml",
         "message": (
-            "📊 AI Day-End Report workflow "
-            "has been triggered."
+            "📊 Day-end report workflow triggered."
         )
     },
 
@@ -76,12 +91,61 @@ WORKFLOWS = {
 
 
 # ==========================================================
-# TELEGRAM SEND
+# TELEGRAM REQUEST
 # ==========================================================
 
-def send_message(chat_id, text):
+def telegram_request(
+    method,
+    params=None
+):
 
-    url = f"{TELEGRAM_API}/sendMessage"
+    url = (
+        f"{TELEGRAM_API}/{method}"
+    )
+
+    try:
+
+        response = requests.get(
+            url,
+            params=params,
+            timeout=30
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if not data.get("ok"):
+
+            logger.error(
+                f"Telegram API error: {data}"
+            )
+
+            return None
+
+        return data
+
+    except Exception as e:
+
+        logger.error(
+            f"Telegram request failed: {e}"
+        )
+
+        return None
+
+
+# ==========================================================
+# SEND TELEGRAM MESSAGE
+# ==========================================================
+
+def send_message(
+    chat_id,
+    text
+):
+
+    url = (
+        f"{TELEGRAM_API}/sendMessage"
+    )
 
     try:
 
@@ -96,69 +160,65 @@ def send_message(chat_id, text):
 
         response.raise_for_status()
 
+        logger.info(
+            "Telegram response sent."
+        )
+
         return True
 
     except Exception as e:
 
-        logging.error(
-            f"Telegram send error: {e}"
+        logger.error(
+            f"Telegram send failed: {e}"
         )
 
         return False
 
 
 # ==========================================================
-# GET TELEGRAM UPDATES
+# GET UPDATES
 # ==========================================================
 
 def get_updates():
 
-    url = f"{TELEGRAM_API}/getUpdates"
+    data = telegram_request(
+        "getUpdates"
+    )
 
-    try:
-
-        response = requests.get(
-            url,
-            params={
-                "timeout": 10
-            },
-            timeout=20
-        )
-
-        response.raise_for_status()
-
-        data = response.json()
-
-        if not data.get("ok"):
-            return []
-
-        return data.get(
-            "result",
-            []
-        )
-
-    except Exception as e:
-
-        logging.error(
-            f"Telegram update error: {e}"
-        )
+    if not data:
 
         return []
+
+    updates = data.get(
+        "result",
+        []
+    )
+
+    logger.info(
+        f"Telegram updates received: "
+        f"{len(updates)}"
+    )
+
+    return updates
 
 
 # ==========================================================
 # TRIGGER GITHUB WORKFLOW
 # ==========================================================
 
-def trigger_workflow(workflow_file):
+def trigger_workflow(
+    workflow_file
+):
 
     url = (
         f"{GITHUB_API}/repos/"
-        f"{GITHUB_REPOSITORY}/actions/workflows/"
+        f"{GITHUB_REPOSITORY}/actions/"
+        f"workflows/"
         f"{workflow_file}/dispatches"
     )
 
     headers = {
+
         "Authorization":
             f"Bearer {GITHUB_TOKEN}",
 
@@ -184,14 +244,16 @@ def trigger_workflow(workflow_file):
 
         if response.status_code == 204:
 
-            logging.info(
-                f"Workflow triggered: {workflow_file}"
+            logger.info(
+                f"Workflow triggered: "
+                f"{workflow_file}"
             )
 
             return True
 
-        logging.error(
-            f"GitHub error {response.status_code}: "
+        logger.error(
+            f"GitHub API error "
+            f"{response.status_code}: "
             f"{response.text}"
         )
 
@@ -199,8 +261,8 @@ def trigger_workflow(workflow_file):
 
     except Exception as e:
 
-        logging.error(
-            f"Workflow trigger error: {e}"
+        logger.error(
+            f"GitHub workflow error: {e}"
         )
 
         return False
@@ -221,13 +283,13 @@ def help_message():
         "Run today's AI stock prediction.\n\n"
 
         "🤖 /train\n"
-        "Start model self-training.\n\n"
+        "Start AI model training.\n\n"
 
         "📊 /report\n"
-        "Run the day-end predicted vs actual report.\n\n"
+        "Run day-end predicted vs actual report.\n\n"
 
         "ℹ️ /status\n"
-        "Show available workflows.\n\n"
+        "Show system status.\n\n"
 
         "❓ /help\n"
         "Show this help message."
@@ -270,15 +332,20 @@ def process_command(
     command
 ):
 
-    command = command.strip().lower()
-
-    logging.info(
-        f"Telegram command: {command}"
+    command = (
+        command
+        .strip()
+        .lower()
+        .split()[0]
     )
 
-    # --------------------------------------
+    logger.info(
+        f"Processing command: {command}"
+    )
+
+    # ------------------------------------------------------
     # HELP
-    # --------------------------------------
+    # ------------------------------------------------------
 
     if command == "/help":
 
@@ -289,9 +356,10 @@ def process_command(
 
         return
 
-    # --------------------------------------
+
+    # ------------------------------------------------------
     # STATUS
-    # --------------------------------------
+    # ------------------------------------------------------
 
     if command == "/status":
 
@@ -302,9 +370,10 @@ def process_command(
 
         return
 
-    # --------------------------------------
-    # WORKFLOW COMMANDS
-    # --------------------------------------
+
+    # ------------------------------------------------------
+    # WORKFLOW COMMAND
+    # ------------------------------------------------------
 
     if command in WORKFLOWS:
 
@@ -334,19 +403,20 @@ def process_command(
             send_message(
                 chat_id,
                 "❌ Failed to trigger workflow.\n\n"
-                "Check GitHub Actions and token permissions."
+                "Please check GitHub Actions."
             )
 
         return
 
-    # --------------------------------------
+
+    # ------------------------------------------------------
     # UNKNOWN COMMAND
-    # --------------------------------------
+    # ------------------------------------------------------
 
     send_message(
         chat_id,
         "❓ Unknown command.\n\n"
-        "Use /help to see available commands."
+        "Use /help."
     )
 
 
@@ -356,24 +426,24 @@ def process_command(
 
 def main():
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format=(
-            "%(asctime)s | "
-            "%(levelname)s | "
-            "%(message)s"
-        )
+    logger.info(
+        "Telegram controller started."
     )
 
     updates = get_updates()
 
     if not updates:
 
-        logging.info(
+        logger.info(
             "No Telegram commands."
         )
 
         return
+
+
+    # ------------------------------------------------------
+    # PROCESS UPDATES
+    # ------------------------------------------------------
 
     for update in updates:
 
@@ -386,7 +456,9 @@ def main():
         )
 
         if not message:
+
             continue
+
 
         chat = message.get(
             "chat",
@@ -402,54 +474,65 @@ def main():
             ""
         )
 
+
         if not chat_id or not text:
+
             continue
 
-        # ----------------------------------
-        # SECURITY
-        # ----------------------------------
-        #
-        # Only respond to the configured
-        # Telegram chat ID.
-        #
 
-        allowed_chat_id = os.getenv(
-            "CHAT_ID"
-        )
+        # --------------------------------------------------
+        # SECURITY CHECK
+        # --------------------------------------------------
 
         if (
-            allowed_chat_id
-            and str(chat_id)
-            != str(allowed_chat_id)
+            str(chat_id)
+            != str(CHAT_ID)
         ):
 
-            logging.warning(
-                f"Unauthorized Telegram chat: "
+            logger.warning(
+                f"Unauthorized chat ID: "
                 f"{chat_id}"
             )
 
             continue
+
+
+        logger.info(
+            f"Command received: "
+            f"{text}"
+        )
+
+
+        # --------------------------------------------------
+        # PROCESS COMMAND
+        # --------------------------------------------------
 
         process_command(
             chat_id,
             text
         )
 
-        # ----------------------------------
-        # Mark update as processed
-        # ----------------------------------
+
+        # --------------------------------------------------
+        # ACKNOWLEDGE UPDATE
+        # --------------------------------------------------
 
         if update_id is not None:
 
-            requests.get(
-                f"{TELEGRAM_API}/getUpdates",
-                params={
-                    "offset": update_id + 1
-                },
-                timeout=20
+            telegram_request(
+                "getUpdates",
+                {
+                    "offset":
+                        update_id + 1
+                }
             )
 
+
+# ==========================================================
+# ENTRY POINT
+# ==========================================================
 
 if __name__ == "__main__":
 
     main()
+```
