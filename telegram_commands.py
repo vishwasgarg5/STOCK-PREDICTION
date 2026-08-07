@@ -1,16 +1,7 @@
-
 """
 telegram_commands.py
 
 Telegram control for AI NSE Stock Prediction System.
-
-Commands:
-
-/run      -> Run prediction workflow
-/train    -> Run model training workflow
-/report   -> Run day-end report workflow
-/status   -> Show system status
-/help     -> Show available commands
 """
 
 import os
@@ -39,7 +30,6 @@ CHAT_ID = os.getenv("CHAT_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
 
-
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is missing")
 
@@ -53,9 +43,7 @@ if not GITHUB_REPOSITORY:
     raise RuntimeError("GITHUB_REPOSITORY is missing")
 
 
-TELEGRAM_API = (
-    f"https://api.telegram.org/bot{BOT_TOKEN}"
-)
+TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 GITHUB_API = "https://api.github.com"
 
@@ -68,45 +56,39 @@ WORKFLOWS = {
 
     "/run": {
         "file": "predict.yml",
-        "message": (
-            "📈 Prediction workflow triggered."
-        )
+        "message": "📈 Prediction workflow triggered."
     },
 
     "/train": {
         "file": "train_model.yml",
-        "message": (
-            "🤖 Model training workflow triggered."
-        )
+        "message": "🤖 Model training workflow triggered."
     },
 
     "/report": {
         "file": "day_end.yml",
-        "message": (
-            "📊 Day-end report workflow triggered."
-        )
+        "message": "📊 Day-end report workflow triggered."
     },
 
 }
 
 
 # ==========================================================
-# TELEGRAM REQUEST
+# TELEGRAM API
 # ==========================================================
 
-def telegram_request(
-    method,
-    params=None
-):
+def telegram_get_updates(offset=None):
 
-    url = (
-        f"{TELEGRAM_API}/{method}"
-    )
+    params = {
+        "timeout": 10
+    }
+
+    if offset is not None:
+        params["offset"] = offset
 
     try:
 
         response = requests.get(
-            url,
+            f"{TELEGRAM_API}/getUpdates",
             params=params,
             timeout=30
         )
@@ -121,21 +103,64 @@ def telegram_request(
                 f"Telegram API error: {data}"
             )
 
-            return None
+            return []
 
-        return data
+        return data.get(
+            "result",
+            []
+        )
 
     except Exception as e:
 
         logger.error(
-            f"Telegram request failed: {e}"
+            f"Telegram getUpdates failed: {e}"
         )
 
-        return None
+        return []
 
 
 # ==========================================================
-# SEND TELEGRAM MESSAGE
+# DELETE / CLEAR OLD UPDATES
+# ==========================================================
+
+def clear_updates(updates):
+
+    if not updates:
+        return
+
+    latest_update_id = max(
+        update["update_id"]
+        for update in updates
+        if "update_id" in update
+    )
+
+    offset = latest_update_id + 1
+
+    logger.info(
+        f"Clearing Telegram updates through "
+        f"update_id {latest_update_id}"
+    )
+
+    try:
+
+        requests.get(
+            f"{TELEGRAM_API}/getUpdates",
+            params={
+                "offset": offset,
+                "timeout": 1
+            },
+            timeout=10
+        )
+
+    except Exception as e:
+
+        logger.warning(
+            f"Could not clear Telegram updates: {e}"
+        )
+
+
+# ==========================================================
+# SEND MESSAGE
 # ==========================================================
 
 def send_message(
@@ -143,14 +168,10 @@ def send_message(
     text
 ):
 
-    url = (
-        f"{TELEGRAM_API}/sendMessage"
-    )
-
     try:
 
         response = requests.post(
-            url,
+            f"{TELEGRAM_API}/sendMessage",
             data={
                 "chat_id": chat_id,
                 "text": text
@@ -173,33 +194,6 @@ def send_message(
         )
 
         return False
-
-
-# ==========================================================
-# GET UPDATES
-# ==========================================================
-
-def get_updates():
-
-    data = telegram_request(
-        "getUpdates"
-    )
-
-    if not data:
-
-        return []
-
-    updates = data.get(
-        "result",
-        []
-    )
-
-    logger.info(
-        f"Telegram updates received: "
-        f"{len(updates)}"
-    )
-
-    return updates
 
 
 # ==========================================================
@@ -229,16 +223,14 @@ def trigger_workflow(
             "2022-11-28"
     }
 
-    payload = {
-        "ref": "main"
-    }
-
     try:
 
         response = requests.post(
             url,
             headers=headers,
-            json=payload,
+            json={
+                "ref": "main"
+            },
             timeout=30
         )
 
@@ -372,7 +364,7 @@ def process_command(
 
 
     # ------------------------------------------------------
-    # WORKFLOW COMMAND
+    # WORKFLOW COMMANDS
     # ------------------------------------------------------
 
     if command in WORKFLOWS:
@@ -402,15 +394,14 @@ def process_command(
 
             send_message(
                 chat_id,
-                "❌ Failed to trigger workflow.\n\n"
-                "Please check GitHub Actions."
+                "❌ Failed to trigger workflow."
             )
 
         return
 
 
     # ------------------------------------------------------
-    # UNKNOWN COMMAND
+    # UNKNOWN
     # ------------------------------------------------------
 
     send_message(
@@ -430,7 +421,7 @@ def main():
         "Telegram controller started."
     )
 
-    updates = get_updates()
+    updates = telegram_get_updates()
 
     if not updates:
 
@@ -441,9 +432,18 @@ def main():
         return
 
 
-    # ------------------------------------------------------
-    # PROCESS UPDATES
-    # ------------------------------------------------------
+    logger.info(
+        f"Telegram updates received: "
+        f"{len(updates)}"
+    )
+
+
+    # ======================================================
+    # FIND ONLY THE LATEST VALID MESSAGE
+    # ======================================================
+
+    latest_message = None
+    latest_update_id = None
 
     for update in updates:
 
@@ -456,9 +456,7 @@ def main():
         )
 
         if not message:
-
             continue
-
 
         chat = message.get(
             "chat",
@@ -474,20 +472,14 @@ def main():
             ""
         )
 
-
         if not chat_id or not text:
-
             continue
 
-
         # --------------------------------------------------
-        # SECURITY CHECK
+        # SECURITY
         # --------------------------------------------------
 
-        if (
-            str(chat_id)
-            != str(CHAT_ID)
-        ):
+        if str(chat_id) != str(CHAT_ID):
 
             logger.warning(
                 f"Unauthorized chat ID: "
@@ -496,36 +488,43 @@ def main():
 
             continue
 
+        latest_message = {
+            "chat_id": chat_id,
+            "text": text
+        }
+
+        latest_update_id = update_id
+
+
+    # ======================================================
+    # CLEAR ALL RECEIVED UPDATES
+    # ======================================================
+
+    clear_updates(updates)
+
+
+    # ======================================================
+    # PROCESS ONLY LATEST COMMAND
+    # ======================================================
+
+    if latest_message is None:
 
         logger.info(
-            f"Command received: "
-            f"{text}"
+            "No valid Telegram command."
         )
 
-
-        # --------------------------------------------------
-        # PROCESS COMMAND
-        # --------------------------------------------------
-
-        process_command(
-            chat_id,
-            text
-        )
+        return
 
 
-        # --------------------------------------------------
-        # ACKNOWLEDGE UPDATE
-        # --------------------------------------------------
+    logger.info(
+        f"Command received: "
+        f"{latest_message['text']}"
+    )
 
-        if update_id is not None:
-
-            telegram_request(
-                "getUpdates",
-                {
-                    "offset":
-                        update_id + 1
-                }
-            )
+    process_command(
+        latest_message["chat_id"],
+        latest_message["text"]
+    )
 
 
 # ==========================================================
@@ -535,4 +534,3 @@ def main():
 if __name__ == "__main__":
 
     main()
-
