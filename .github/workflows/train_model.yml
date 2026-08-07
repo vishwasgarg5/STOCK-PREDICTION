@@ -1,4 +1,4 @@
-```yaml
+
 name: Train AI NSE Models
 
 on:
@@ -33,4 +33,4 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           python train.py
-```
+
