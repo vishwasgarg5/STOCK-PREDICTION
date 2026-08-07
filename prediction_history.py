@@ -1,18 +1,34 @@
+```python
 """
 prediction_history.py
 
-Save daily AI stock predictions to history.
+Save daily stock predictions to history.
+
+The file stores:
+    Prediction_Date
+    Stock
+    Open
+    High
+    Low
+    Close
+
+This history is later used by day_end_report.py
+to compare predicted prices with actual prices.
 """
 
 import os
+import logging
 import pandas as pd
 
 from config import REPORT_DIR
 
 
-# ==========================================
-# FILE
-# ==========================================
+logger = logging.getLogger(__name__)
+
+
+# ======================================================
+# HISTORY FILE
+# ======================================================
 
 HISTORY_FILE = os.path.join(
     REPORT_DIR,
@@ -20,131 +36,188 @@ HISTORY_FILE = os.path.join(
 )
 
 
-# ==========================================
-# SAVE PREDICTION HISTORY
-# ==========================================
+# ======================================================
+# SAVE DAILY PREDICTIONS
+# ======================================================
 
 def save_prediction_history(
     predictions,
     prediction_date
 ):
     """
-    Save today's predictions.
+    Save predictions for one trading day.
 
-    Columns:
-        Prediction_Date
-        Stock
-        Open
-        High
-        Low
-        Close
+    Parameters
+    ----------
+    predictions : list
+        List of prediction dictionaries.
+
+    prediction_date : str
+        Date for which prediction was generated.
+        Format: YYYY-MM-DD
     """
 
     if not predictions:
-        print("No predictions to save.")
-        return
 
-    os.makedirs(
-        REPORT_DIR,
-        exist_ok=True
-    )
-
-    df = pd.DataFrame(predictions)
-
-    # --------------------------------------
-    # Add prediction date
-    # --------------------------------------
-
-    df.insert(
-        0,
-        "Prediction_Date",
-        prediction_date
-    )
-
-    # --------------------------------------
-    # Required columns
-    # --------------------------------------
-
-    required_columns = [
-        "Prediction_Date",
-        "Stock",
-        "Open",
-        "High",
-        "Low",
-        "Close"
-    ]
-
-    missing = [
-        col
-        for col in required_columns
-        if col not in df.columns
-    ]
-
-    if missing:
-        raise ValueError(
-            f"Missing prediction columns: {missing}"
+        logger.warning(
+            "No predictions available to save."
         )
 
-    df = df[
-        required_columns
-    ]
+        return False
 
-    # --------------------------------------
-    # Remove duplicate prediction
-    # --------------------------------------
-    # If the workflow is manually triggered
-    # twice on the same day, don't duplicate
-    # the same stock prediction.
 
-    if os.path.exists(HISTORY_FILE):
+    try:
 
-        old = pd.read_csv(
-            HISTORY_FILE
+        # ------------------------------------------
+        # Create reports directory
+        # ------------------------------------------
+
+        os.makedirs(
+            REPORT_DIR,
+            exist_ok=True
         )
 
-        old = old[
-            ~(
-                (old["Prediction_Date"].astype(str) == str(prediction_date))
-                &
-                (old["Stock"].astype(str).isin(
-                    df["Stock"].astype(str)
-                ))
-            )
+
+        # ------------------------------------------
+        # Convert predictions to DataFrame
+        # ------------------------------------------
+
+        df = pd.DataFrame(predictions)
+
+
+        # ------------------------------------------
+        # Add prediction date
+        # ------------------------------------------
+
+        df.insert(
+            0,
+            "Prediction_Date",
+            prediction_date
+        )
+
+
+        # ------------------------------------------
+        # Required columns
+        # ------------------------------------------
+
+        required_columns = [
+            "Prediction_Date",
+            "Stock",
+            "Open",
+            "High",
+            "Low",
+            "Close",
         ]
 
-        df = pd.concat(
-            [
-                old,
-                df
+
+        missing = [
+            col
+            for col in required_columns
+            if col not in df.columns
+        ]
+
+
+        if missing:
+
+            logger.error(
+                f"Missing prediction columns: {missing}"
+            )
+
+            return False
+
+
+        df = df[
+            required_columns
+        ]
+
+
+        # ------------------------------------------
+        # Remove duplicate stock predictions
+        # ------------------------------------------
+
+        df = df.drop_duplicates(
+            subset=[
+                "Prediction_Date",
+                "Stock"
             ],
-            ignore_index=True
+            keep="last"
         )
 
-    # --------------------------------------
-    # Save
-    # --------------------------------------
 
-    df.to_csv(
-        HISTORY_FILE,
-        index=False
-    )
+        # ------------------------------------------
+        # Append to existing history
+        # ------------------------------------------
 
-    print(
-        f"Prediction history updated: {HISTORY_FILE}"
-    )
+        if os.path.exists(HISTORY_FILE):
+
+            try:
+
+                old = pd.read_csv(
+                    HISTORY_FILE
+                )
+
+                df = pd.concat(
+                    [
+                        old,
+                        df
+                    ],
+                    ignore_index=True
+                )
+
+            except Exception as e:
+
+                logger.warning(
+                    f"Could not read existing history: {e}"
+                )
 
 
-# ==========================================
-# LOAD PREDICTION HISTORY
-# ==========================================
+        # ------------------------------------------
+        # Remove duplicate entries
+        # ------------------------------------------
 
-def load_prediction_history():
+        df = df.drop_duplicates(
+            subset=[
+                "Prediction_Date",
+                "Stock"
+            ],
+            keep="last"
+        )
 
-    if not os.path.exists(
-        HISTORY_FILE
-    ):
-        return pd.DataFrame()
 
-    return pd.read_csv(
-        HISTORY_FILE
-    )
+        # ------------------------------------------
+        # Sort history
+        # ------------------------------------------
+
+        df = df.sort_values(
+            by=[
+                "Prediction_Date",
+                "Stock"
+            ]
+        )
+
+
+        # ------------------------------------------
+        # Save CSV
+        # ------------------------------------------
+
+        df.to_csv(
+            HISTORY_FILE,
+            index=False
+        )
+
+
+        logger.info(
+            f"Prediction history updated: {HISTORY_FILE}"
+        )
+
+        return True
+
+
+    except Exception as e:
+
+        logger.exception(
+            f"Failed to save prediction history: {e}"
+        )
+
+        return False
+```
