@@ -1,4 +1,3 @@
-````python
 """
 day_end_report.py
 
@@ -818,4 +817,3 @@ if __name__ == "__main__":
         logger.error(
             "Day-end report failed."
         )
-````
